@@ -10,17 +10,11 @@ const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode');
 
-// Variáveis para armazenar o socket e informações de sessão
-let sock = null;
-let qrText = '';
-let isConnected = false;
-let connectionStatus = 'disconnected';
-let sessionStatus = {};
+// Objeto para armazenar múltiplas instâncias
+const instances = {};
 
 // Diretório para armazenar as sessões
 const SESSION_DIR = process.env.SESSION_DIR || './sessions';
-const SESSION_ID = 'default_session';
-const SESSION_PATH = path.join(SESSION_DIR, SESSION_ID);
 
 // Verificar se o diretório de sessões existe, se não, criar
 if (!fs.existsSync(SESSION_DIR)) {
@@ -28,18 +22,46 @@ if (!fs.existsSync(SESSION_DIR)) {
 }
 
 /**
- * Inicializa a conexão com o WhatsApp
+ * Retorna a lista de instâncias ativas
  */
-const initializeWhatsApp = async () => {
+const getActiveInstances = () => {
+  return Object.keys(instances).map(id => ({
+    id,
+    connected: instances[id]?.isConnected || false,
+    status: instances[id]?.connectionStatus || 'disconnected'
+  }));
+};
+
+/**
+ * Inicializa a conexão com o WhatsApp para um cliente específico
+ * @param {string} clientId - Identificador único do cliente
+ */
+const initializeWhatsApp = async (clientId = 'default') => {
   try {
+    // Criar diretório específico para o cliente se não existir
+    const SESSION_PATH = path.join(SESSION_DIR, clientId);
+    if (!fs.existsSync(SESSION_PATH)) {
+      fs.mkdirSync(SESSION_PATH, { recursive: true });
+    }
+    
     // Obter as credenciais salvas
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_PATH);
     
     // Buscar a versão mais recente do Baileys
     const { version } = await fetchLatestBaileysVersion();
 
+    // Inicializar o objeto de instância se não existir
+    if (!instances[clientId]) {
+      instances[clientId] = {
+        sock: null,
+        qrText: '',
+        isConnected: false,
+        connectionStatus: 'disconnected'
+      };
+    }
+
     // Criar socket do WhatsApp
-    sock = makeWASocket({
+    instances[clientId].sock = makeWASocket({
       version,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: true,
@@ -51,38 +73,40 @@ const initializeWhatsApp = async () => {
       syncFullHistory: false
     });
 
+    const sock = instances[clientId].sock;
+
     // Gerenciar eventos de conexão
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       // Quando o QR Code estiver disponível
       if (qr) {
-        qrText = qr;
-        console.log('QR Code gerado. Escaneie para se conectar.');
+        instances[clientId].qrText = qr;
+        console.log(`[${clientId}] QR Code gerado. Escaneie para se conectar.`);
       }
 
       // Quando o status de conexão mudar
       if (connection) {
-        connectionStatus = connection;
-        console.log('Status de conexão:', connection);
+        instances[clientId].connectionStatus = connection;
+        console.log(`[${clientId}] Status de conexão:`, connection);
         
         // Se estiver conectado
         if (connection === 'open') {
-          isConnected = true;
-          console.log('Conectado com sucesso ao WhatsApp!');
+          instances[clientId].isConnected = true;
+          console.log(`[${clientId}] Conectado com sucesso ao WhatsApp!`);
         }
         
         // Se desconectado
         if (connection === 'close') {
-          isConnected = false;
+          instances[clientId].isConnected = false;
           
           // Tentar reconectar se não for um logout
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           if (statusCode !== DisconnectReason.loggedOut) {
-            console.log('Reconectando...');
-            initializeWhatsApp();
+            console.log(`[${clientId}] Reconectando...`);
+            initializeWhatsApp(clientId);
           } else {
-            console.log('Desconectado do WhatsApp (logout).');
+            console.log(`[${clientId}] Desconectado do WhatsApp (logout).`);
             // Remover credenciais de sessão
             if (fs.existsSync(SESSION_PATH)) {
               fs.rmSync(SESSION_PATH, { recursive: true, force: true });
@@ -100,7 +124,7 @@ const initializeWhatsApp = async () => {
       const message = m.messages[0];
       
       if (!message.key.fromMe && m.type === 'notify') {
-        console.log('Nova mensagem recebida:', JSON.stringify(message, null, 2));
+        console.log(`[${clientId}] Nova mensagem recebida:`, JSON.stringify(message, null, 2));
         
         // Aqui você pode adicionar lógica para processar mensagens recebidas
         // e implementar respostas automáticas, etc.
@@ -109,22 +133,27 @@ const initializeWhatsApp = async () => {
 
     return sock;
   } catch (error) {
-    console.error('Erro ao inicializar o WhatsApp:', error);
+    console.error(`[${clientId}] Erro ao inicializar o WhatsApp:`, error);
     return null;
   }
 };
 
 /**
  * Envia uma mensagem de texto para um número de telefone
+ * @param {string} clientId - Identificador do cliente
+ * @param {string} phoneNumber - Número de telefone de destino
+ * @param {string} message - Mensagem de texto a ser enviada
  */
-const sendTextMessage = async (phoneNumber, message) => {
+const sendTextMessage = async (clientId = 'default', phoneNumber, message) => {
   try {
-    if (!isConnected || !sock) {
+    if (!instances[clientId] || !instances[clientId].isConnected || !instances[clientId].sock) {
       return {
         success: false,
-        error: 'WhatsApp não está conectado'
+        error: `WhatsApp do cliente ${clientId} não está conectado`
       };
     }
+    
+    const sock = instances[clientId].sock;
     
     // Formatar o número do telefone (adicionar @s.whatsapp.net)
     let jid = phoneNumber;
@@ -140,7 +169,7 @@ const sendTextMessage = async (phoneNumber, message) => {
       message: 'Mensagem enviada com sucesso'
     };
   } catch (error) {
-    console.error('Erro ao enviar mensagem de texto:', error);
+    console.error(`[${clientId}] Erro ao enviar mensagem:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao enviar mensagem'
@@ -150,15 +179,21 @@ const sendTextMessage = async (phoneNumber, message) => {
 
 /**
  * Envia uma imagem para um número de telefone
+ * @param {string} clientId - Identificador do cliente
+ * @param {string} phoneNumber - Número de telefone de destino
+ * @param {string} imageUrl - URL ou caminho local da imagem
+ * @param {string} caption - Legenda opcional para a imagem
  */
-const sendImageMessage = async (phoneNumber, imageUrl, caption = '') => {
+const sendImageMessage = async (clientId = 'default', phoneNumber, imageUrl, caption = '') => {
   try {
-    if (!isConnected || !sock) {
+    if (!instances[clientId] || !instances[clientId].isConnected || !instances[clientId].sock) {
       return {
         success: false,
-        error: 'WhatsApp não está conectado'
+        error: `WhatsApp do cliente ${clientId} não está conectado`
       };
     }
+    
+    const sock = instances[clientId].sock;
     
     // Formatar o número do telefone
     let jid = phoneNumber;
@@ -190,7 +225,7 @@ const sendImageMessage = async (phoneNumber, imageUrl, caption = '') => {
       message: 'Imagem enviada com sucesso'
     };
   } catch (error) {
-    console.error('Erro ao enviar imagem:', error);
+    console.error(`[${clientId}] Erro ao enviar imagem:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao enviar imagem'
@@ -200,15 +235,22 @@ const sendImageMessage = async (phoneNumber, imageUrl, caption = '') => {
 
 /**
  * Envia um documento PDF para um número de telefone
+ * @param {string} clientId - Identificador do cliente
+ * @param {string} phoneNumber - Número de telefone de destino
+ * @param {string} pdfUrl - URL ou caminho local do arquivo PDF
+ * @param {string} filename - Nome do arquivo
+ * @param {string} caption - Legenda opcional
  */
-const sendPdfMessage = async (phoneNumber, pdfUrl, filename = 'documento.pdf', caption = '') => {
+const sendPdfMessage = async (clientId = 'default', phoneNumber, pdfUrl, filename = 'documento.pdf', caption = '') => {
   try {
-    if (!isConnected || !sock) {
+    if (!instances[clientId] || !instances[clientId].isConnected || !instances[clientId].sock) {
       return {
         success: false,
-        error: 'WhatsApp não está conectado'
+        error: `WhatsApp do cliente ${clientId} não está conectado`
       };
     }
+    
+    const sock = instances[clientId].sock;
     
     // Formatar o número do telefone
     let jid = phoneNumber;
@@ -242,7 +284,7 @@ const sendPdfMessage = async (phoneNumber, pdfUrl, filename = 'documento.pdf', c
       message: 'PDF enviado com sucesso'
     };
   } catch (error) {
-    console.error('Erro ao enviar PDF:', error);
+    console.error(`[${clientId}] Erro ao enviar PDF:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao enviar PDF'
@@ -251,27 +293,29 @@ const sendPdfMessage = async (phoneNumber, pdfUrl, filename = 'documento.pdf', c
 };
 
 /**
- * Gera uma URL do QR Code como string base64
+ * Gera uma URL do QR Code como string base64 para um cliente específico
+ * @param {string} clientId - Identificador do cliente
  */
-const getQrCode = async () => {
+const getQrCode = async (clientId = 'default') => {
   try {
-    if (!qrText) {
+    if (!instances[clientId] || !instances[clientId].qrText) {
       return {
         success: false,
-        error: 'QR Code não disponível no momento'
+        error: `QR Code para o cliente ${clientId} não disponível no momento`
       };
     }
     
     // Gerar QR Code como base64
-    const qrBase64 = await qrcode.toDataURL(qrText);
+    const qrBase64 = await qrcode.toDataURL(instances[clientId].qrText);
     
     return {
       success: true,
       qrCode: qrBase64,
-      status: connectionStatus
+      status: instances[clientId].connectionStatus,
+      clientId
     };
   } catch (error) {
-    console.error('Erro ao gerar QR Code:', error);
+    console.error(`[${clientId}] Erro ao gerar QR Code:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao gerar QR Code'
@@ -280,42 +324,52 @@ const getQrCode = async () => {
 };
 
 /**
- * Obtém o status da conexão atual
+ * Obtém o status da conexão atual para um cliente específico
+ * @param {string} clientId - Identificador do cliente
  */
-const getConnectionStatus = () => {
+const getConnectionStatus = (clientId = 'default') => {
+  if (!instances[clientId]) {
+    return {
+      success: false,
+      error: `Cliente ${clientId} não encontrado`
+    };
+  }
+  
   return {
     success: true,
-    connected: isConnected,
-    status: connectionStatus
+    connected: instances[clientId].isConnected,
+    status: instances[clientId].connectionStatus,
+    clientId
   };
 };
 
 /**
- * Desconecta do WhatsApp
+ * Desconecta do WhatsApp para um cliente específico
+ * @param {string} clientId - Identificador do cliente
  */
-const logout = async () => {
+const logout = async (clientId = 'default') => {
   try {
-    if (!sock) {
+    if (!instances[clientId] || !instances[clientId].sock) {
       return {
         success: false,
-        error: 'Nenhuma conexão ativa'
+        error: `Nenhuma conexão ativa para o cliente ${clientId}`
       };
     }
     
     // Logout do WhatsApp
-    await sock.logout();
+    await instances[clientId].sock.logout();
     
     // Limpar variáveis
-    isConnected = false;
-    connectionStatus = 'disconnected';
-    qrText = '';
+    instances[clientId].isConnected = false;
+    instances[clientId].connectionStatus = 'disconnected';
+    instances[clientId].qrText = '';
     
     return {
       success: true,
-      message: 'Desconectado com sucesso'
+      message: `Cliente ${clientId} desconectado com sucesso`
     };
   } catch (error) {
-    console.error('Erro ao desconectar:', error);
+    console.error(`[${clientId}] Erro ao desconectar:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao desconectar'
@@ -324,24 +378,25 @@ const logout = async () => {
 };
 
 /**
- * Reinicia a conexão com o WhatsApp
+ * Reinicia a conexão com o WhatsApp para um cliente específico
+ * @param {string} clientId - Identificador do cliente
  */
-const restartConnection = async () => {
+const restartConnection = async (clientId = 'default') => {
   try {
     // Desconectar primeiro se estiver conectado
-    if (sock) {
-      await sock.close();
+    if (instances[clientId] && instances[clientId].sock) {
+      await instances[clientId].sock.close();
     }
     
     // Reiniciar a conexão
-    await initializeWhatsApp();
+    await initializeWhatsApp(clientId);
     
     return {
       success: true,
-      message: 'Conexão reiniciada com sucesso'
+      message: `Conexão do cliente ${clientId} reiniciada com sucesso`
     };
   } catch (error) {
-    console.error('Erro ao reiniciar conexão:', error);
+    console.error(`[${clientId}] Erro ao reiniciar conexão:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao reiniciar conexão'
@@ -357,5 +412,6 @@ module.exports = {
   getQrCode,
   getConnectionStatus,
   logout,
-  restartConnection
+  restartConnection,
+  getActiveInstances
 };

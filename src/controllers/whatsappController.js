@@ -1,11 +1,60 @@
 const whatsappService = require('../services/whatsappService');
 
 /**
+ * Obtém a lista de instâncias ativas
+ */
+const getInstances = async (req, res) => {
+  try {
+    const instances = whatsappService.getActiveInstances();
+    return res.json({
+      success: true,
+      instances
+    });
+  } catch (error) {
+    console.error('Erro ao obter instâncias:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao obter instâncias'
+    });
+  }
+};
+
+/**
+ * Inicializa uma nova instância para um cliente
+ */
+const initInstance = async (req, res) => {
+  try {
+    const { clientId } = req.body;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID do cliente é obrigatório'
+      });
+    }
+    
+    await whatsappService.initializeWhatsApp(clientId);
+    
+    return res.json({
+      success: true,
+      message: `Instância para cliente ${clientId} inicializada com sucesso`
+    });
+  } catch (error) {
+    console.error('Erro ao inicializar instância:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao inicializar instância'
+    });
+  }
+};
+
+/**
  * Obtém o QR Code para autenticação
  */
 const getQrCode = async (req, res) => {
   try {
-    const result = await whatsappService.getQrCode();
+    const clientId = req.query.clientId || 'default';
+    const result = await whatsappService.getQrCode(clientId);
     return res.json(result);
   } catch (error) {
     console.error('Erro ao obter QR Code:', error);
@@ -21,7 +70,8 @@ const getQrCode = async (req, res) => {
  */
 const getQrCodeImage = async (req, res) => {
   try {
-    const result = await whatsappService.getQrCode();
+    const clientId = req.query.clientId || 'default';
+    const result = await whatsappService.getQrCode(clientId);
     
     if (!result.success || !result.qrCode) {
       return res.status(404).send('QR Code não disponível');
@@ -49,7 +99,8 @@ const getQrCodeImage = async (req, res) => {
  */
 const getStatus = async (req, res) => {
   try {
-    const status = whatsappService.getConnectionStatus();
+    const clientId = req.query.clientId || 'default';
+    const status = whatsappService.getConnectionStatus(clientId);
     return res.json(status);
   } catch (error) {
     console.error('Erro ao obter status:', error);
@@ -65,7 +116,7 @@ const getStatus = async (req, res) => {
  */
 const sendTextMessage = async (req, res) => {
   try {
-    const { phoneNumber, message } = req.body;
+    const { clientId = 'default', phoneNumber, message } = req.body;
     
     // Validar parâmetros
     if (!phoneNumber || !message) {
@@ -75,7 +126,7 @@ const sendTextMessage = async (req, res) => {
       });
     }
     
-    const result = await whatsappService.sendTextMessage(phoneNumber, message);
+    const result = await whatsappService.sendTextMessage(clientId, phoneNumber, message);
     return res.json(result);
   } catch (error) {
     console.error('Erro ao enviar mensagem de texto:', error);
@@ -91,7 +142,7 @@ const sendTextMessage = async (req, res) => {
  */
 const sendImageMessage = async (req, res) => {
   try {
-    const { phoneNumber, imageUrl, caption } = req.body;
+    const { clientId = 'default', phoneNumber, imageUrl, caption } = req.body;
     
     // Validar parâmetros
     if (!phoneNumber || !imageUrl) {
@@ -101,7 +152,7 @@ const sendImageMessage = async (req, res) => {
       });
     }
     
-    const result = await whatsappService.sendImageMessage(phoneNumber, imageUrl, caption || '');
+    const result = await whatsappService.sendImageMessage(clientId, phoneNumber, imageUrl, caption || '');
     return res.json(result);
   } catch (error) {
     console.error('Erro ao enviar imagem:', error);
@@ -117,7 +168,7 @@ const sendImageMessage = async (req, res) => {
  */
 const sendPdfMessage = async (req, res) => {
   try {
-    const { phoneNumber, pdfUrl, filename, caption } = req.body;
+    const { clientId = 'default', phoneNumber, pdfUrl, filename, caption } = req.body;
     
     // Validar parâmetros
     if (!phoneNumber || !pdfUrl) {
@@ -128,6 +179,7 @@ const sendPdfMessage = async (req, res) => {
     }
     
     const result = await whatsappService.sendPdfMessage(
+      clientId,
       phoneNumber, 
       pdfUrl, 
       filename || 'documento.pdf', 
@@ -149,7 +201,8 @@ const sendPdfMessage = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    const result = await whatsappService.logout();
+    const clientId = req.body.clientId || 'default';
+    const result = await whatsappService.logout(clientId);
     return res.json(result);
   } catch (error) {
     console.error('Erro ao desconectar:', error);
@@ -165,7 +218,8 @@ const logout = async (req, res) => {
  */
 const restartConnection = async (req, res) => {
   try {
-    const result = await whatsappService.restartConnection();
+    const clientId = req.body.clientId || 'default';
+    const result = await whatsappService.restartConnection(clientId);
     return res.json(result);
   } catch (error) {
     console.error('Erro ao reiniciar conexão:', error);
@@ -184,5 +238,7 @@ module.exports = {
   sendImageMessage,
   sendPdfMessage,
   logout,
-  restartConnection
+  restartConnection,
+  getInstances,
+  initInstance
 };

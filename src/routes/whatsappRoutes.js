@@ -3,6 +3,10 @@ const whatsappController = require('../controllers/whatsappController');
 
 const router = express.Router();
 
+// Rotas para gerenciamento de instâncias
+router.get('/instances', whatsappController.getInstances);
+router.post('/instance/init', whatsappController.initInstance);
+
 // Rotas para conexão e status
 router.get('/qr', whatsappController.getQrCode);
 router.get('/qr-image', whatsappController.getQrCodeImage); // Nova rota para obter a imagem diretamente
