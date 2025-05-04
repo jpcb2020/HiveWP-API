@@ -199,6 +199,58 @@ const sendImageMessage = async (phoneNumber, imageUrl, caption = '') => {
 };
 
 /**
+ * Envia um documento PDF para um número de telefone
+ */
+const sendPdfMessage = async (phoneNumber, pdfUrl, filename = 'documento.pdf', caption = '') => {
+  try {
+    if (!isConnected || !sock) {
+      return {
+        success: false,
+        error: 'WhatsApp não está conectado'
+      };
+    }
+    
+    // Formatar o número do telefone
+    let jid = phoneNumber;
+    if (!jid.includes('@')) {
+      jid = jid.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+    }
+    
+    // Verificar se a URL é válida ou se é um caminho local
+    let document;
+    if (pdfUrl.startsWith('http')) {
+      document = { url: pdfUrl };
+    } else if (fs.existsSync(pdfUrl)) {
+      document = { url: pdfUrl };
+    } else {
+      return {
+        success: false,
+        error: 'URL do PDF inválida ou arquivo não encontrado'
+      };
+    }
+    
+    // Enviar o documento PDF
+    await sock.sendMessage(jid, {
+      document,
+      mimetype: 'application/pdf',
+      fileName: filename,
+      caption: caption
+    });
+    
+    return {
+      success: true,
+      message: 'PDF enviado com sucesso'
+    };
+  } catch (error) {
+    console.error('Erro ao enviar PDF:', error);
+    return {
+      success: false,
+      error: error.message || 'Erro ao enviar PDF'
+    };
+  }
+};
+
+/**
  * Gera uma URL do QR Code como string base64
  */
 const getQrCode = async () => {
@@ -301,6 +353,7 @@ module.exports = {
   initializeWhatsApp,
   sendTextMessage,
   sendImageMessage,
+  sendPdfMessage,
   getQrCode,
   getConnectionStatus,
   logout,

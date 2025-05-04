@@ -113,6 +113,38 @@ const sendImageMessage = async (req, res) => {
 };
 
 /**
+ * Envia um documento PDF
+ */
+const sendPdfMessage = async (req, res) => {
+  try {
+    const { phoneNumber, pdfUrl, filename, caption } = req.body;
+    
+    // Validar parâmetros
+    if (!phoneNumber || !pdfUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Número de telefone e URL do PDF são obrigatórios'
+      });
+    }
+    
+    const result = await whatsappService.sendPdfMessage(
+      phoneNumber, 
+      pdfUrl, 
+      filename || 'documento.pdf', 
+      caption || ''
+    );
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao enviar PDF:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao enviar PDF'
+    });
+  }
+};
+
+/**
  * Desconecta do WhatsApp
  */
 const logout = async (req, res) => {
@@ -150,6 +182,7 @@ module.exports = {
   getStatus,
   sendTextMessage,
   sendImageMessage,
+  sendPdfMessage,
   logout,
   restartConnection
 };

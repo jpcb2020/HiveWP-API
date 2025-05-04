@@ -13,5 +13,6 @@ router.post('/logout', whatsappController.logout);
 // Rotas para envio de mensagens
 router.post('/send/text', whatsappController.sendTextMessage);
 router.post('/send/image', whatsappController.sendImageMessage);
+router.post('/send/pdf', whatsappController.sendPdfMessage);
 
 module.exports = router;

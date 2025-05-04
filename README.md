@@ -7,6 +7,7 @@ Uma API RESTful para interagir com o WhatsApp Web usando a biblioteca Baileys.
 - Autenticação via QR Code
 - Envio de mensagens de texto
 - Envio de imagens com legendas
+- Envio de documentos PDF
 - Gerenciamento de conexão
 - Monitoramento de status
 
@@ -43,11 +44,17 @@ Para desenvolvimento:
 npm run dev
 ```
 
+5. Acesse o QR Code para conectar seu WhatsApp:
+```
+http://localhost:3000/api/whatsapp/qr-image
+```
+
 ## Endpoints da API
 
 ### Conexão e status
 
-- **GET /api/whatsapp/qr** - Obtém o QR Code para autenticação
+- **GET /api/whatsapp/qr** - Obtém o QR Code para autenticação (formato JSON)
+- **GET /api/whatsapp/qr-image** - Obtém o QR Code como imagem PNG
 - **GET /api/whatsapp/status** - Verifica o status da conexão
 - **POST /api/whatsapp/restart** - Reinicia a conexão
 - **POST /api/whatsapp/logout** - Desconecta do WhatsApp
@@ -59,6 +66,9 @@ npm run dev
 
 - **POST /api/whatsapp/send/image** - Envia uma imagem
   - Body: `{ "phoneNumber": "5511999999999", "imageUrl": "https://exemplo.com/imagem.jpg", "caption": "Descrição da imagem" }`
+
+- **POST /api/whatsapp/send/pdf** - Envia um documento PDF
+  - Body: `{ "phoneNumber": "5511999999999", "pdfUrl": "https://exemplo.com/documento.pdf", "filename": "documento.pdf", "caption": "Descrição do documento" }`
 
 ## Exemplos de uso
 
@@ -78,6 +88,12 @@ fetch('http://localhost:3000/api/whatsapp/send/text', {
 .then(response => response.json())
 .then(data => console.log(data));
 ```
+
+## Notas importantes
+
+- A pasta `sessions` contém dados de autenticação e não deve ser commitada no Git (já está no .gitignore)
+- Se você precisar desconectar o WhatsApp, use o endpoint `/api/whatsapp/logout` ou apague o conteúdo da pasta `sessions/`
+- Cada desenvolvedor precisa escanear seu próprio QR code para autenticar
 
 ## Licença
 
