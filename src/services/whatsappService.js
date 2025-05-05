@@ -306,8 +306,10 @@ const validatePhoneNumber = async (clientId, phoneNumber) => {
  * @param {string} clientId - Identificador do cliente
  * @param {string} phoneNumber - Número de telefone de destino
  * @param {string} message - Mensagem de texto a ser enviada
+ * @param {boolean} simulateTyping - Se true, simula digitação antes de enviar (opcional)
+ * @param {number} typingDurationMs - Duração da simulação de digitação em ms (opcional, padrão: 1500ms)
  */
-const sendTextMessage = async (clientId = 'default', phoneNumber, message) => {
+const sendTextMessage = async (clientId = 'default', phoneNumber, message, simulateTyping = false, typingDurationMs = 1500) => {
   try {
     if (!instances[clientId]?.sock) {
       return {
@@ -323,10 +325,31 @@ const sendTextMessage = async (clientId = 'default', phoneNumber, message) => {
     // Usar diretamente o JID retornado pela validação
     const jid = validation.jid;
     
+    // Se a opção de simular digitação estiver ativada
+    if (simulateTyping) {
+      try {
+        // Enviar estado de "digitando..."
+        await instances[clientId].sock.sendPresenceUpdate('composing', jid);
+        
+        // Esperar pelo tempo especificado para simular a digitação
+        await new Promise(resolve => setTimeout(resolve, typingDurationMs));
+        
+        // Parar de "digitar" antes de enviar a mensagem
+        await instances[clientId].sock.sendPresenceUpdate('paused', jid);
+      } catch (typingError) {
+        // Se houver erro na simulação de digitação, apenas log e continua para enviar a mensagem
+        console.error(`[${clientId}] Erro ao simular digitação:`, typingError);
+      }
+    }
+    
     // Enviar mensagem de texto
     await instances[clientId].sock.sendMessage(jid, { text: message });
     
-    return { success: true, message: 'Mensagem enviada com sucesso' };
+    return { 
+      success: true, 
+      message: 'Mensagem enviada com sucesso',
+      withTypingSimulation: simulateTyping
+    };
   } catch (error) {
     console.error(`[${clientId}] Erro ao enviar mensagem:`, error);
     return {

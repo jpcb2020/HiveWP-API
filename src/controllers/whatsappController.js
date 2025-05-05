@@ -116,7 +116,7 @@ const getStatus = async (req, res) => {
  */
 const sendTextMessage = async (req, res) => {
   try {
-    const { clientId = 'default', phoneNumber, message } = req.body;
+    const { clientId = 'default', phoneNumber, message, simulateTyping = false, typingDurationMs = 1500 } = req.body;
     
     // Validar parâmetros
     if (!phoneNumber || !message) {
@@ -126,7 +126,19 @@ const sendTextMessage = async (req, res) => {
       });
     }
     
-    const result = await whatsappService.sendTextMessage(clientId, phoneNumber, message);
+    // Garantir que typingDurationMs seja um número razoável (entre 500ms e 5000ms)
+    const typingDuration = simulateTyping 
+      ? Math.min(Math.max(parseInt(typingDurationMs) || 1500, 500), 5000)
+      : 0;
+    
+    const result = await whatsappService.sendTextMessage(
+      clientId, 
+      phoneNumber, 
+      message, 
+      simulateTyping, 
+      typingDuration
+    );
+    
     return res.json(result);
   } catch (error) {
     console.error('Erro ao enviar mensagem de texto:', error);

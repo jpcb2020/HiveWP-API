@@ -86,7 +86,8 @@ http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
 ### Envio de mensagens
 
 - **POST /api/whatsapp/send/text** - Envia uma mensagem de texto
-  - Body: `{ "clientId": "identificador_do_cliente", "phoneNumber": "5511999999999", "message": "Olá, mundo!" }`
+  - Body: `{ "clientId": "identificador_do_cliente", "phoneNumber": "5511999999999", "message": "Olá, mundo!", "simulateTyping": false, "typingDurationMs": 1500 }`
+  - Nota: Os parâmetros `simulateTyping` e `typingDurationMs` são opcionais. Se `simulateTyping` for `true`, o WhatsApp mostrará o status "digitando..." por `typingDurationMs` milissegundos antes de enviar a mensagem.
   - Nota: O número de telefone é verificado antes do envio. Se não estiver registrado no WhatsApp, a API retornará um erro.
 
 - **POST /api/whatsapp/send/media** - Envia uma mídia (imagem, documento, vídeo ou áudio)
@@ -130,7 +131,9 @@ O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsA
    {
      "clientId": "cliente1",
      "phoneNumber": "5511999999999",
-     "message": "Olá do cliente1!"
+     "message": "Olá do cliente1!",
+     "simulateTyping": true,  // Opcional: simula digitação antes de enviar
+     "typingDurationMs": 2000 // Opcional: duração da simulação de digitação em ms (padrão: 1500)
    }
    ```
 
@@ -215,7 +218,9 @@ fetch('http://localhost:3000/api/whatsapp/send/text', {
   body: JSON.stringify({
     clientId: 'clienteA',
     phoneNumber: '5511999999999',
-    message: 'Olá, esta é uma mensagem do cliente A!'
+    message: 'Olá, esta é uma mensagem do cliente A!',
+    simulateTyping: true,  // Opcional: simula digitação antes de enviar
+    typingDurationMs: 2000 // Opcional: duração da simulação de digitação em ms (padrão: 1500)
   }),
 })
 .then(response => response.json())
