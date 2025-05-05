@@ -104,7 +104,8 @@ const getActiveInstances = () => {
     connected: instances[id]?.isConnected || false,
     status: instances[id]?.connectionStatus || 'disconnected',
     config: {
-      ignoreGroups: instances[id]?.ignoreGroups || false
+      ignoreGroups: instances[id]?.ignoreGroups || false,
+      webhookUrl: instances[id]?.webhookUrl || ''
     }
   }));
 };
@@ -135,11 +136,17 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         qrText: '',
         isConnected: false,
         connectionStatus: 'disconnected',
-        ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : DEFAULT_IGNORE_GROUPS
+        ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : DEFAULT_IGNORE_GROUPS,
+        webhookUrl: options.webhookUrl || ''
       };
-    } else if (options.ignoreGroups !== undefined) {
-      // Atualizar configuração se fornecida
-      instances[clientId].ignoreGroups = options.ignoreGroups;
+    } else {
+      // Atualizar configurações se fornecidas
+      if (options.ignoreGroups !== undefined) {
+        instances[clientId].ignoreGroups = options.ignoreGroups;
+      }
+      if (options.webhookUrl !== undefined) {
+        instances[clientId].webhookUrl = options.webhookUrl;
+      }
     }
 
     // Criar socket do WhatsApp
@@ -217,6 +224,23 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         
         console.log(`[${clientId}] Nova mensagem recebida:`, JSON.stringify(message, null, 2));
         
+        // Enviar para webhook, se configurado
+        if (instances[clientId].webhookUrl) {
+          try {
+            const webhookData = {
+              clientId,
+              messageType: m.type,
+              message: message,
+              timestamp: new Date().toISOString()
+            };
+            
+            console.log(`[${clientId}] Enviando mensagem para webhook: ${instances[clientId].webhookUrl}`);
+            await sendToWebhook(instances[clientId].webhookUrl, webhookData);
+          } catch (webhookError) {
+            console.error(`[${clientId}] Erro ao enviar para webhook:`, webhookError);
+          }
+        }
+        
         // Aqui você pode adicionar lógica para processar mensagens recebidas
         // e implementar respostas automáticas, etc.
       }
@@ -226,6 +250,58 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
   } catch (error) {
     console.error(`[${clientId}] Erro ao inicializar o WhatsApp:`, error);
     return null;
+  }
+};
+
+/**
+ * Função para enviar dados para um webhook
+ * @param {string} webhookUrl - URL do webhook
+ * @param {object} data - Dados a serem enviados
+ */
+const sendToWebhook = async (webhookUrl, data) => {
+  if (!webhookUrl) return;
+  
+  try {
+    // Usar o módulo https ou http dependendo da URL
+    const httpModule = webhookUrl.startsWith('https') ? require('https') : require('http');
+    const url = new URL(webhookUrl);
+    
+    return new Promise((resolve, reject) => {
+      const requestOptions = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname + url.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      };
+      
+      const req = httpModule.request(requestOptions, (res) => {
+        let responseData = '';
+        
+        res.on('data', (chunk) => {
+          responseData += chunk;
+        });
+        
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            data: responseData
+          });
+        });
+      });
+      
+      req.on('error', (error) => {
+        console.error(`Erro ao enviar para webhook: ${error.message}`);
+        reject(error);
+      });
+      
+      req.write(JSON.stringify(data));
+      req.end();
+    });
+  } catch (error) {
+    console.error(`Erro ao processar envio para webhook: ${error.message}`);
   }
 };
 
@@ -779,9 +855,10 @@ const deleteInstance = async (clientId = 'default') => {
 };
 
 /**
- * Atualiza as configurações de uma instância específica
+ * Atualiza as configurações de uma instância
  * @param {string} clientId - Identificador do cliente
- * @param {object} config - Objeto com as configurações a serem atualizadas
+ * @param {object} config - Configurações a serem atualizadas
+ * @returns {object} - Resultado da atualização
  */
 const updateInstanceConfig = (clientId = 'default', config = {}) => {
   try {
@@ -792,20 +869,24 @@ const updateInstanceConfig = (clientId = 'default', config = {}) => {
       };
     }
     
-    // Atualizar configuração para ignorar grupos se fornecida
+    // Atualizar apenas as configurações fornecidas
     if (config.ignoreGroups !== undefined) {
       instances[clientId].ignoreGroups = !!config.ignoreGroups;
+    }
+    
+    if (config.webhookUrl !== undefined) {
+      instances[clientId].webhookUrl = config.webhookUrl;
     }
     
     return {
       success: true,
       message: `Configurações do cliente ${clientId} atualizadas com sucesso`,
-      currentConfig: {
-        ignoreGroups: instances[clientId].ignoreGroups
+      config: {
+        ignoreGroups: instances[clientId].ignoreGroups,
+        webhookUrl: instances[clientId].webhookUrl
       }
     };
   } catch (error) {
-    console.error(`[${clientId}] Erro ao atualizar configurações:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao atualizar configurações'
@@ -827,5 +908,6 @@ module.exports = {
   loadExistingSessions,
   checkNumberExists,
   validatePhoneNumber,
-  updateInstanceConfig
+  updateInstanceConfig,
+  sendToWebhook
 };

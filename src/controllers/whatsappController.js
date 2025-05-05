@@ -24,7 +24,7 @@ const getInstances = async (req, res) => {
  */
 const initInstance = async (req, res) => {
   try {
-    const { clientId, ignoreGroups } = req.body;
+    const { clientId, ignoreGroups, webhookUrl } = req.body;
     
     if (!clientId) {
       return res.status(400).json({
@@ -38,6 +38,9 @@ const initInstance = async (req, res) => {
     if (ignoreGroups !== undefined) {
       options.ignoreGroups = !!ignoreGroups;
     }
+    if (webhookUrl !== undefined) {
+      options.webhookUrl = webhookUrl;
+    }
     
     await whatsappService.initializeWhatsApp(clientId, options);
     
@@ -45,7 +48,8 @@ const initInstance = async (req, res) => {
       success: true,
       message: `Instância para cliente ${clientId} inicializada com sucesso`,
       config: {
-        ignoreGroups: ignoreGroups !== undefined ? !!ignoreGroups : undefined
+        ignoreGroups: ignoreGroups !== undefined ? !!ignoreGroups : undefined,
+        webhookUrl: webhookUrl
       }
     });
   } catch (error) {
@@ -315,19 +319,28 @@ const checkNumberExists = async (req, res) => {
  */
 const updateConfig = async (req, res) => {
   try {
-    const { clientId = 'default', ignoreGroups } = req.body;
+    const { clientId = 'default', ignoreGroups, webhookUrl } = req.body;
     
     // Validar parâmetros
-    if (ignoreGroups === undefined) {
+    if (ignoreGroups === undefined && webhookUrl === undefined) {
       return res.status(400).json({
         success: false,
         error: 'Pelo menos uma configuração deve ser fornecida'
       });
     }
     
-    const result = whatsappService.updateInstanceConfig(clientId, {
-      ignoreGroups: !!ignoreGroups
-    });
+    // Criar objeto de configuração com os parâmetros fornecidos
+    const configOptions = {};
+    
+    if (ignoreGroups !== undefined) {
+      configOptions.ignoreGroups = !!ignoreGroups;
+    }
+    
+    if (webhookUrl !== undefined) {
+      configOptions.webhookUrl = webhookUrl;
+    }
+    
+    const result = whatsappService.updateInstanceConfig(clientId, configOptions);
     
     return res.json(result);
   } catch (error) {

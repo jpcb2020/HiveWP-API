@@ -11,6 +11,7 @@ Uma API RESTful para interagir com o WhatsApp Web usando a biblioteca Baileys.
 - Monitoramento de status
 - **Múltiplas instâncias** para gerenciar diferentes clientes
 - **Ignorar mensagens de grupos** para filtrar apenas mensagens individuais
+- **Webhooks** para receber notificações de mensagens em tempo real
 
 ## Requisitos
 
@@ -59,7 +60,9 @@ POST http://localhost:3000/api/whatsapp/instance/init
 Content-Type: application/json
 
 {
-  "clientId": "cliente1"
+  "clientId": "cliente1",
+  "ignoreGroups": true, // Opcional: configurar a instância para ignorar mensagens de grupos
+  "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
 }
 ```
 
@@ -73,11 +76,11 @@ http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
 
 - **GET /api/whatsapp/instances** - Lista todas as instâncias ativas
 - **POST /api/whatsapp/instance/init** - Inicializa uma nova instância
-  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false }`
+  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false, "webhookUrl": "https://sua-url.com/webhook" }`
 - **POST /api/whatsapp/instance/delete** - Deleta uma instância existente
   - Body: `{ "clientId": "identificador_unico_do_cliente" }`
 - **POST /api/whatsapp/instance/config** - Atualiza configurações de uma instância existente
-  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false }`
+  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false, "webhookUrl": "https://sua-url.com/webhook" }`
 - **POST /api/whatsapp/check-number** - Verifica se um número está registrado no WhatsApp
   - Body: `{ "clientId": "identificador_unico_do_cliente", "phoneNumber": "5511999999999" }`
 
@@ -156,7 +159,8 @@ O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsA
 
    {
      "clientId": "cliente1",
-     "ignoreGroups": true // Opcional: configurar a instância para ignorar mensagens de grupos
+     "ignoreGroups": true, // Opcional: configurar a instância para ignorar mensagens de grupos
+     "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
    }
    ```
 
@@ -199,7 +203,77 @@ O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsA
 - Cada instância é identificada por um `clientId` único
 - Uma instância padrão ('default') é usada se nenhum `clientId` for especificado
 - Cada instância possui seu próprio diretório de sessão em `sessions/{clientId}`
-- O parâmetro `clientId` é opcional em todos os endpoints (padrão é 'default')
+- Cada instância pode ter sua própria configuração de `ignoreGroups` e `webhookUrl`
+
+## Webhooks
+
+A API suporta webhooks para notificar sistemas externos sobre mensagens recebidas no WhatsApp em tempo real.
+
+### Como configurar um webhook:
+
+1. **Ao inicializar uma nova instância**:
+   ```
+   POST /api/whatsapp/instance/init
+   Content-Type: application/json
+
+   {
+     "clientId": "cliente1",
+     "webhookUrl": "https://sua-url.com/webhook"
+   }
+   ```
+
+2. **Ou para uma instância existente**:
+   ```
+   POST /api/whatsapp/instance/config
+   Content-Type: application/json
+
+   {
+     "clientId": "cliente1",
+     "webhookUrl": "https://sua-url.com/webhook"
+   }
+   ```
+
+3. **Para remover um webhook**:
+   ```
+   POST /api/whatsapp/instance/config
+   Content-Type: application/json
+
+   {
+     "clientId": "cliente1",
+     "webhookUrl": ""
+   }
+   ```
+
+### Formato dos dados enviados para o webhook:
+
+Quando uma mensagem é recebida, o seguinte JSON é enviado via POST para a URL configurada:
+
+```json
+{
+  "clientId": "cliente1",
+  "messageType": "notify",
+  "message": {
+    // Objeto completo da mensagem do WhatsApp
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "ABCDEF123456"
+    },
+    "message": {
+      "conversation": "Olá, como vai?"
+    },
+    // ... outros campos da mensagem
+  },
+  "timestamp": "2025-05-05T17:54:06-03:00"
+}
+```
+
+### Notas sobre webhooks:
+
+- É recomendável que seu endpoint de webhook responda rapidamente (preferencialmente em menos de 5 segundos)
+- Se o webhook falhar, a mensagem continuará a ser processada normalmente
+- Apenas mensagens recebidas são enviadas para o webhook (mensagens enviadas pela API não são notificadas)
+- Você pode usar o campo `ignoreGroups` junto com `webhookUrl` para filtrar as notificações apenas para mensagens individuais
 
 ## Exemplos de uso
 
@@ -214,7 +288,8 @@ fetch('http://localhost:3000/api/whatsapp/instance/init', {
   },
   body: JSON.stringify({
     clientId: 'clienteA',
-    ignoreGroups: true // Opcional: configurar a instância para ignorar mensagens de grupos
+    ignoreGroups: true, // Opcional: configurar a instância para ignorar mensagens de grupos
+    webhookUrl: "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
   }),
 })
 .then(response => response.json())
@@ -353,7 +428,7 @@ fetch('http://localhost:3000/api/whatsapp/instance/config', {
 ## Notas importantes
 
 - A pasta `sessions` contém dados de autenticação e não deve ser commitada no Git (já está no .gitignore)
-- Cada instância possui seu próprio subdiretório dentro da pasta `sessions/`
+- Cada instância possui seu próprio subdiretório dentro da pasta `sessions/{clientId}`
 - Se você precisar desconectar uma instância do WhatsApp, use o endpoint `/api/whatsapp/logout` com o `clientId` correspondente
 - Cada instância precisa escanear seu próprio QR code para autenticar
 
