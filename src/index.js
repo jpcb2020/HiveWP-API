@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const whatsappRoutes = require('./routes/whatsappRoutes');
+const whatsappService = require('./services/whatsappService');
 require('dotenv').config();
 
 const app = express();
@@ -18,6 +19,17 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.get('/', (req, res) => {
   res.json({ status: 'online', message: 'HiveWP API está rodando!' });
 });
+
+// Carregar instâncias existentes
+(async () => {
+  try {
+    console.log('Carregando instâncias existentes...');
+    const sessions = await whatsappService.loadExistingSessions();
+    console.log(`${sessions.length} instâncias carregadas com sucesso!`);
+  } catch (error) {
+    console.error('Erro ao carregar instâncias:', error);
+  }
+})();
 
 // Iniciar o servidor
 app.listen(PORT, () => {

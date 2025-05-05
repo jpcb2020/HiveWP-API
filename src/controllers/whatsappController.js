@@ -138,60 +138,68 @@ const sendTextMessage = async (req, res) => {
 };
 
 /**
- * Envia uma mensagem com imagem
+ * Envia uma mídia (imagem, documento ou qualquer tipo de arquivo)
  */
-const sendImageMessage = async (req, res) => {
+const sendMediaMessage = async (req, res) => {
   try {
-    const { clientId = 'default', phoneNumber, imageUrl, caption } = req.body;
+    const { clientId = 'default', phoneNumber, mediaUrl, filename, mimetype, caption } = req.body;
     
     // Validar parâmetros
-    if (!phoneNumber || !imageUrl) {
+    if (!phoneNumber || !mediaUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Número de telefone e URL da imagem são obrigatórios'
+        error: 'Número de telefone e URL da mídia são obrigatórios'
       });
     }
     
-    const result = await whatsappService.sendImageMessage(clientId, phoneNumber, imageUrl, caption || '');
+    const result = await whatsappService.sendMediaMessage(
+      clientId,
+      phoneNumber, 
+      mediaUrl, 
+      filename, 
+      mimetype,
+      caption
+    );
+    
     return res.json(result);
   } catch (error) {
-    console.error('Erro ao enviar imagem:', error);
+    console.error('Erro ao enviar mídia:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao enviar imagem'
+      error: error.message || 'Erro ao enviar mídia'
     });
   }
 };
 
 /**
- * Envia um documento PDF
+ * Envia uma mensagem de áudio (PTT/Voice Message)
  */
-const sendPdfMessage = async (req, res) => {
+const sendAudioMessage = async (req, res) => {
   try {
-    const { clientId = 'default', phoneNumber, pdfUrl, filename, caption } = req.body;
+    const { clientId = 'default', phoneNumber, audioUrl, caption, mimetype } = req.body;
     
     // Validar parâmetros
-    if (!phoneNumber || !pdfUrl) {
+    if (!phoneNumber || !audioUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Número de telefone e URL do PDF são obrigatórios'
+        error: 'Número de telefone e URL do áudio são obrigatórios'
       });
     }
     
-    const result = await whatsappService.sendPdfMessage(
+    const result = await whatsappService.sendAudioMessage(
       clientId,
       phoneNumber, 
-      pdfUrl, 
-      filename || 'documento.pdf', 
-      caption || ''
+      audioUrl, 
+      caption,
+      mimetype
     );
     
     return res.json(result);
   } catch (error) {
-    console.error('Erro ao enviar PDF:', error);
+    console.error('Erro ao enviar áudio:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao enviar PDF'
+      error: error.message || 'Erro ao enviar áudio'
     });
   }
 };
@@ -230,15 +238,68 @@ const restartConnection = async (req, res) => {
   }
 };
 
+/**
+ * Deleta uma instância específica de WhatsApp
+ */
+const deleteInstance = async (req, res) => {
+  try {
+    const { clientId } = req.body;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID do cliente é obrigatório'
+      });
+    }
+    
+    const result = await whatsappService.deleteInstance(clientId);
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao deletar instância:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao deletar instância'
+    });
+  }
+};
+
+/**
+ * Verifica se um número está registrado no WhatsApp
+ */
+const checkNumberExists = async (req, res) => {
+  try {
+    const { clientId = 'default', phoneNumber } = req.body;
+    
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'Número de telefone é obrigatório'
+      });
+    }
+    
+    const result = await whatsappService.checkNumberExists(clientId, phoneNumber);
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao verificar número:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao verificar número'
+    });
+  }
+};
+
 module.exports = {
   getQrCode,
   getQrCodeImage,
   getStatus,
   sendTextMessage,
-  sendImageMessage,
-  sendPdfMessage,
+  sendMediaMessage,
+  sendAudioMessage,
   logout,
   restartConnection,
   getInstances,
-  initInstance
+  initInstance,
+  deleteInstance,
+  checkNumberExists
 };

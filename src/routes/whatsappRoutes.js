@@ -6,6 +6,10 @@ const router = express.Router();
 // Rotas para gerenciamento de instâncias
 router.get('/instances', whatsappController.getInstances);
 router.post('/instance/init', whatsappController.initInstance);
+router.post('/instance/delete', whatsappController.deleteInstance);
+
+// Rota para verificação de números
+router.post('/check-number', whatsappController.checkNumberExists);
 
 // Rotas para conexão e status
 router.get('/qr', whatsappController.getQrCode);
@@ -16,7 +20,7 @@ router.post('/logout', whatsappController.logout);
 
 // Rotas para envio de mensagens
 router.post('/send/text', whatsappController.sendTextMessage);
-router.post('/send/image', whatsappController.sendImageMessage);
-router.post('/send/pdf', whatsappController.sendPdfMessage);
+router.post('/send/media', whatsappController.sendMediaMessage);
+router.post('/send/audio', whatsappController.sendAudioMessage);
 
 module.exports = router;
