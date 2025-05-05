@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiveWP - WhatsApp Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script>
+        // Verificar autenticação ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            const apiKey = localStorage.getItem('hiveApiKey');
+            if (!apiKey) {
+                // Redirecionar para a página de login se não houver API key
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Verificar se a API key é válida
+            fetch('/api/status', {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // API key inválida, redirecionar para login
+                    localStorage.removeItem('hiveApiKey');
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao verificar autenticação:', err);
+            });
+        });
+
+        function logout() {
+            localStorage.removeItem('hiveApiKey');
+            window.location.href = 'login.html';
+        }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">HiveWP</h1>
+                <button id="sidebar-toggle" class="mobile-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active"><a href="#dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li><a href="#instances"><i class="fab fa-whatsapp"></i> WhatsApp Instances</a></li>
+                    <li><a href="#settings"><i class="fas fa-cog"></i> Settings</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="user-actions">
+                    <button id="add-new-btn" class="btn primary"><i class="fas fa-plus"></i> Add New</button>
+                    <button id="logout-btn" class="btn secondary" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="content-section active">
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fab fa-whatsapp"></i></div>
+                        <div class="stat-info">
+                            <h3>WhatsApp Instances</h3>
+                            <p id="instance-count">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-info">
+                            <h3>Connected</h3>
+                            <p id="connected-count">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                        <div class="stat-info">
+                            <h3>Disconnected</h3>
+                            <p id="disconnected-count">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list" id="activity-list">
+                        <p class="empty-state">No recent activities</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WhatsApp Instances Section -->
+            <section id="instances-section" class="content-section">
+                <div class="section-header">
+                    <h3>Manage WhatsApp Instances</h3>
+                </div>
+                <div class="instance-list" id="instance-list">
+                    <p class="empty-state">No instances added yet</p>
+                </div>
+                <div id="qr-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Scan QR Code</h3>
+                            <button class="close-modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="qr-code-container"></div>
+                            <p>Scan this QR code with your WhatsApp mobile app to connect your instance.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings-section" class="content-section">
+                <div class="section-header">
+                    <h3>Settings</h3>
+                </div>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label for="api-url">API URL</label>
+                        <input type="text" id="api-url" class="form-control" placeholder="http://localhost:3000">
+                    </div>
+                    <button id="save-settings" class="btn primary">Save Settings</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="add-instance-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New WhatsApp Instance</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-instance-form">
+                    <div class="form-group">
+                        <label for="instance-id">Instance ID (clientId)</label>
+                        <input type="text" id="instance-id" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn primary">Create Instance</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="alert-title">Alert</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="alert-message"></p>
+                <button class="btn primary close-modal">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

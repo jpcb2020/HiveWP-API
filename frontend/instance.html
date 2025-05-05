@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiveWP - Instance Details</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        .instance-details {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .instance-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .instance-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-connected {
+            background-color: #25D366;
+            color: white;
+        }
+        
+        .status-disconnected {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .status-initializing {
+            background-color: #ffc107;
+            color: #333;
+        }
+        
+        .qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .qr-container img {
+            max-width: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .instance-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .instance-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .instance-tab.active {
+            border-bottom: 2px solid #25D366;
+            color: #25D366;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #DCF8C6;
+            color: #25D366;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            margin-right: 15px;
+        }
+        
+        .log-entry {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .log-time {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 40px; 
+            height: 40px; 
+            border: 3px solid rgba(0,0,0,0.1); 
+            border-radius: 50%; 
+            border-top-color: #25D366; 
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin { 
+            to { 
+                transform: rotate(360deg); 
+            } 
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">HiveWP</h1>
+                <button id="sidebar-toggle" class="mobile-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="/"><i class="fas fa-arrow-left"></i> Back to Dashboard</a></li>
+                    <li class="active"><a href="#info"><i class="fas fa-info-circle"></i> Instance Info</a></li>
+                    <li><a href="#settings"><i class="fas fa-cog"></i> Settings</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h2 id="page-title">Instance Details</h2>
+                <div class="user-actions">
+                    <a href="/" class="btn secondary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+                </div>
+            </header>
+
+            <div class="instance-details">
+                <div class="instance-header">
+                    <div class="instance-title">
+                        <h2 id="instance-name">Loading...</h2>
+                        <span id="status-badge" class="status-badge status-disconnected">Disconnected</span>
+                    </div>
+                    <div>
+                        <span id="instance-last-updated"></span>
+                    </div>
+                </div>
+                
+                <!-- QR Code Container (shown only if disconnected) -->
+                <div id="qr-container" class="qr-container" style="display: none;">
+                    <div id="qr-code-placeholder">
+                        <p>QR code is being generated...</p>
+                    </div>
+                    <p>Escaneie este código QR com o seu WhatsApp para conectar esta instância.</p>
+                    <button id="refresh-qr" class="btn secondary" style="margin-top: 10px;">
+                        <i class="fas fa-sync"></i> Atualizar QR Code
+                    </button>
+                </div>
+                
+                <div class="instance-tabs">
+                    <div class="instance-tab active" data-tab="info">Information</div>
+                    <div class="instance-tab" data-tab="stats">Statistics</div>
+                    <div class="instance-tab" data-tab="logs">Logs</div>
+                </div>
+                
+                <!-- Info Tab -->
+                <div id="info-tab" class="tab-content active">
+                    <div class="action-buttons">
+                        <button id="btn-reconnect" class="btn primary"><i class="fas fa-sync"></i> Reconnect</button>
+                        <button id="btn-logout" class="btn secondary"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                        <button id="btn-delete" class="btn danger"><i class="fas fa-trash"></i> Delete Instance</button>
+                    </div>
+                </div>
+                
+                <!-- Stats Tab -->
+                <div id="stats-tab" class="tab-content">
+                    <div class="stat-box">
+                        <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+                        <div>
+                            <h4>Creation Date</h4>
+                            <p id="creation-date">-</p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <h4>Last Connected</h4>
+                            <p id="last-connected">-</p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
+                        <div>
+                            <h4>Connection Status</h4>
+                            <p id="connection-status">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Logs Tab -->
+                <div id="logs-tab" class="tab-content">
+                    <div id="instance-logs">
+                        <p class="empty-state">No logs available yet.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="alert-title">Alert</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="alert-message"></p>
+                <button class="btn primary close-modal">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar autenticação ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            const apiKey = localStorage.getItem('hiveApiKey');
+            if (!apiKey) {
+                // Redirecionar para a página de login se não houver API key
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Verificar se a API key é válida
+            fetch('/api/status', {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // API key inválida, redirecionar para login
+                    localStorage.removeItem('hiveApiKey');
+                    window.location.href = 'login.html';
+                } else {
+                    // API key válida, inicializar a página
+                    initPage();
+                }
+            })
+            .catch(err => {
+                console.error('Erro ao verificar autenticação:', err);
+                showAlert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão.');
+            });
+        });
+        
+        // Função para logout
+        function logout() {
+            localStorage.removeItem('hiveApiKey');
+            window.location.href = 'login.html';
+        }
+        
+        // DOM Elements
+        const elements = {
+            instanceName: document.getElementById('instance-name'),
+            statusBadge: document.getElementById('status-badge'),
+            qrContainer: document.getElementById('qr-container'),
+            qrCodePlaceholder: document.getElementById('qr-code-placeholder'),
+            reconnectBtn: document.getElementById('btn-reconnect'),
+            logoutBtn: document.getElementById('btn-logout'),
+            deleteBtn: document.getElementById('btn-delete'),
+            tabs: document.querySelectorAll('.instance-tab'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            lastUpdated: document.getElementById('instance-last-updated'),
+            creationDate: document.getElementById('creation-date'),
+            lastConnected: document.getElementById('last-connected'),
+            connectionStatus: document.getElementById('connection-status'),
+            instanceLogs: document.getElementById('instance-logs'),
+            alertModal: document.getElementById('alert-modal'),
+            alertTitle: document.getElementById('alert-title'),
+            alertMessage: document.getElementById('alert-message'),
+            sidebarToggle: document.getElementById('sidebar-toggle'),
+            sidebar: document.querySelector('.sidebar'),
+            refreshQrBtn: document.getElementById('refresh-qr')
+        };
+
+        // Get clientId from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientId = urlParams.get('id');
+        
+        // API URL
+        const apiUrl = localStorage.getItem('apiUrl') || 'http://localhost:3000';
+        
+        // State
+        const state = {
+            instance: null,
+            qrCodeCheckInterval: null,
+            statusCheckInterval: null
+        };
+        
+        // Get API authentication header
+        function getAuthHeader() {
+            const apiKey = localStorage.getItem('hiveApiKey');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            };
+        }
+        
+        // Initialize page
+        async function initPage() {
+            if (!clientId) {
+                showAlert('Error', 'No instance ID provided. Redirecting to dashboard...');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                return;
+            }
+            
+            elements.instanceName.textContent = clientId;
+            
+            // Set up tabs
+            elements.tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.getAttribute('data-tab');
+                    activateTab(tabName);
+                });
+            });
+            
+            // Set up action buttons
+            elements.reconnectBtn.addEventListener('click', reconnectInstance);
+            elements.logoutBtn.addEventListener('click', logoutInstance);
+            elements.deleteBtn.addEventListener('click', deleteInstance);
+            
+            // Setup refresh QR button
+            elements.refreshQrBtn.addEventListener('click', fetchQrCode);
+            
+            // Set up mobile sidebar toggle
+            elements.sidebarToggle.addEventListener('click', () => {
+                elements.sidebar.classList.toggle('expanded');
+            });
+            
+            // Setup close modal buttons
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    closeModal(e.target.closest('.modal'));
+                });
+            });
+            
+            // Start data loading
+            await loadInstanceData();
+            
+            // Set up periodic status check
+            state.statusCheckInterval = setInterval(checkInstanceStatus, 10000); // Check every 10 seconds
+        }
+        
+        // Load instance data
+        async function loadInstanceData() {
+            try {
+                const response = await fetch(`${apiUrl}/api/whatsapp/status?clientId=${clientId}`, {
+                    headers: getAuthHeader()
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load instance data: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateInstanceData(data);
+                } else {
+                    throw new Error(data.error || 'Failed to load instance data');
+                }
+            } catch (error) {
+                console.error('Error loading instance data:', error);
+                showAlert('Connection Error', 'Failed to connect to the API: ' + error.message);
+            }
+        }
+        
+        // Update instance data in the UI
+        function updateInstanceData(data) {
+            state.instance = data;
+            
+            // Update status badge
+            const isConnected = data.connected;
+            elements.statusBadge.textContent = isConnected ? 'Connected' : 'Disconnected';
+            elements.statusBadge.className = `status-badge ${isConnected ? 'status-connected' : 'status-disconnected'}`;
+            
+            // Update connection status
+            elements.connectionStatus.textContent = data.status || (isConnected ? 'Connected' : 'Disconnected');
+            
+            // Show/hide QR code container based on connection status
+            if (!isConnected) {
+                elements.qrContainer.style.display = 'flex';
+                fetchQrCode();
+                
+                // Start QR code refresh interval if not connected
+                if (!state.qrCodeCheckInterval) {
+                    state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000); // Refresh QR every 20 seconds
+                }
+            } else {
+                elements.qrContainer.style.display = 'none';
+                // Clear QR check interval if connected
+                if (state.qrCodeCheckInterval) {
+                    clearInterval(state.qrCodeCheckInterval);
+                    state.qrCodeCheckInterval = null;
+                }
+            }
+            
+            // Update last updated time
+            elements.lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Fetch QR code for the instance
+        async function fetchQrCode() {
+            try {
+                // Mostrar spinner de carregamento
+                elements.qrCodePlaceholder.innerHTML = `
+                    <div style="text-align: center; margin: 20px 0;">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px;">Carregando código QR...</p>
+                    </div>
+                `;
+                
+                // Tentar primeiro com o endpoint JSON que retorna dados do QR code
+                const timestamp = new Date().getTime();
+                const response = await fetch(`${apiUrl}/api/whatsapp/qr?clientId=${clientId}&t=${timestamp}`, {
+                    headers: getAuthHeader()
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ao buscar QR code: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'QR code não disponível');
+                }
+                
+                if (result.qrCode) {
+                    // Se temos o código QR, exibir usando a URL de dados
+                    elements.qrCodePlaceholder.innerHTML = `
+                        <img 
+                            src="${result.qrCode}" 
+                            alt="Código QR para WhatsApp" 
+                            style="max-width: 250px; height: auto;"
+                        >
+                    `;
+                    return;
+                }
+                
+                // Se chegamos aqui, não temos QR code disponível
+                elements.qrCodePlaceholder.innerHTML = `
+                    <div style="text-align: center; margin: 20px 0;">
+                        <p>QR code não está disponível no momento.</p>
+                        <button onclick="reconnectInstance()" class="btn primary" style="margin-top: 10px;">
+                            <i class="fas fa-sync"></i> Reconectar instância
+                        </button>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Erro ao buscar QR code:', error);
+                elements.qrCodePlaceholder.innerHTML = `
+                    <div style="text-align: center; margin: 20px 0;">
+                        <p>Erro ao carregar o código QR: ${error.message}</p>
+                        <div style="margin-top: 10px;">
+                            <button onclick="fetchQrCode()" class="btn secondary" style="margin-right: 10px;">
+                                <i class="fas fa-sync"></i> Tentar novamente
+                            </button>
+                            <button onclick="reconnectInstance()" class="btn primary">
+                                <i class="fas fa-plug"></i> Reconectar instância
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Check instance status
+        async function checkInstanceStatus() {
+            try {
+                const response = await fetch(`${apiUrl}/api/whatsapp/status?clientId=${clientId}`, {
+                    headers: getAuthHeader()
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // If status changed from disconnected to connected or vice versa
+                    if (state.instance && state.instance.connected !== data.connected) {
+                        // Reload full data
+                        updateInstanceData(data);
+                        
+                        // Add log entry
+                        addLogEntry(`Status changed to ${data.connected ? 'Connected' : 'Disconnected'}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+        
+        // Reconnect instance
+        async function reconnectInstance() {
+            if (!confirm(`Are you sure you want to reconnect the instance "${clientId}"?`)) {
+                return;
+            }
+            
+            try {
+                elements.statusBadge.textContent = 'Initializing...';
+                elements.statusBadge.className = 'status-badge status-initializing';
+                
+                const response = await fetch(`${apiUrl}/api/whatsapp/instance/init`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ clientId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Success', 'Instance reconnection initiated. QR code will be generated shortly.');
+                    addLogEntry('Reconnection initiated');
+                    
+                    // Show QR container
+                    elements.qrContainer.style.display = 'flex';
+                    elements.qrCodePlaceholder.innerHTML = '<p>Generating new QR code...</p>';
+                    
+                    // Wait a moment and fetch the QR code
+                    setTimeout(fetchQrCode, 3000);
+                    
+                    // Start QR code refresh interval if not already running
+                    if (!state.qrCodeCheckInterval) {
+                        state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000);
+                    }
+                } else {
+                    showAlert('Error', data.error || 'Failed to reconnect instance');
+                }
+            } catch (error) {
+                console.error('Error reconnecting instance:', error);
+                showAlert('Connection Error', 'Failed to connect to the API');
+            }
+        }
+        
+        // Logout instance
+        async function logoutInstance() {
+            if (!confirm(`Are you sure you want to logout the instance "${clientId}"? This will disconnect it from WhatsApp.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/whatsapp/logout`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ clientId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Success', 'Instance logged out successfully');
+                    addLogEntry('Logged out from WhatsApp');
+                    
+                    // Update status
+                    elements.statusBadge.textContent = 'Disconnected';
+                    elements.statusBadge.className = 'status-badge status-disconnected';
+                    
+                    // Reload instance data
+                    setTimeout(loadInstanceData, 1000);
+                } else {
+                    showAlert('Error', data.error || 'Failed to logout instance');
+                }
+            } catch (error) {
+                console.error('Error logging out instance:', error);
+                showAlert('Connection Error', 'Failed to connect to the API');
+            }
+        }
+        
+        // Delete instance
+        async function deleteInstance() {
+            if (!confirm(`Are you sure you want to DELETE the instance "${clientId}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            if (!confirm(`FINAL WARNING: This will permanently delete the instance "${clientId}" and all its data. Continue?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/whatsapp/instance/delete`, {
+                    method: 'POST',
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ clientId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Success', 'Instance deleted successfully. Redirecting to dashboard...');
+                    
+                    // Redirect to dashboard after a delay
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showAlert('Error', data.error || 'Failed to delete instance');
+                }
+            } catch (error) {
+                console.error('Error deleting instance:', error);
+                showAlert('Connection Error', 'Failed to connect to the API');
+            }
+        }
+        
+        // Activate tab
+        function activateTab(tabName) {
+            // Update tab buttons
+            elements.tabs.forEach(tab => {
+                if (tab.getAttribute('data-tab') === tabName) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            // Update tab contents
+            elements.tabContents.forEach(content => {
+                if (content.id === `${tabName}-tab`) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        }
+        
+        // Add log entry
+        function addLogEntry(message) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const dateString = now.toLocaleDateString();
+            
+            // Remove empty state if present
+            const emptyState = elements.instanceLogs.querySelector('.empty-state');
+            if (emptyState) {
+                elements.instanceLogs.innerHTML = '';
+            }
+            
+            // Create log entry
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <p>${message}</p>
+                <span class="log-time">${dateString} ${timeString}</span>
+            `;
+            
+            // Add to beginning of logs
+            elements.instanceLogs.insertBefore(logEntry, elements.instanceLogs.firstChild);
+        }
+        
+        // Show alert modal
+        function showAlert(title, message) {
+            elements.alertTitle.textContent = title;
+            elements.alertMessage.textContent = message;
+            elements.alertModal.classList.add('active');
+        }
+        
+        // Close modal
+        function closeModal(modal) {
+            modal.classList.remove('active');
+        }
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (state.qrCodeCheckInterval) {
+                clearInterval(state.qrCodeCheckInterval);
+            }
+            if (state.statusCheckInterval) {
+                clearInterval(state.statusCheckInterval);
+            }
+        });
+    </script>
+</body>
+</html>

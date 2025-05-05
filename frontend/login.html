@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiveWP - Autenticação</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-icon">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <h1 class="login-logo">HiveWP</h1>
+            <p>Entre com sua chave de API para acessar o painel</p>
+            
+            <form id="login-form" class="login-form">
+                <input type="password" id="api-key" placeholder="Digite sua chave de API" required>
+                <button type="submit">Entrar</button>
+            </form>
+            
+            <div id="login-error" class="login-error">
+                Chave de API inválida. Por favor, tente novamente.
+            </div>
+            
+            <div class="login-note">
+                <p>A chave de API está configurada no arquivo .env do servidor</p>
+                <p>Você só precisa fazer login uma vez, a chave será salva no seu navegador</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/login.js"></script>
+</body>
+</html>

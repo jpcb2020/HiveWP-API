@@ -1,12 +1,17 @@
 const express = require('express');
 const whatsappController = require('../controllers/whatsappController');
+const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+// Aplicar middleware de autenticação a todas as rotas
+router.use(authMiddleware);
 
 // Rotas para gerenciamento de instâncias
 router.get('/instances', whatsappController.getInstances);
 router.post('/instance/init', whatsappController.initInstance);
 router.post('/instance/delete', whatsappController.deleteInstance);
+router.post('/instance/config', whatsappController.updateConfig);
 
 // Rota para verificação de números
 router.post('/check-number', whatsappController.checkNumberExists);

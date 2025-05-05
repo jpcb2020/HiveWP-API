@@ -24,7 +24,7 @@ const getInstances = async (req, res) => {
  */
 const initInstance = async (req, res) => {
   try {
-    const { clientId } = req.body;
+    const { clientId, ignoreGroups } = req.body;
     
     if (!clientId) {
       return res.status(400).json({
@@ -33,11 +33,20 @@ const initInstance = async (req, res) => {
       });
     }
     
-    await whatsappService.initializeWhatsApp(clientId);
+    // Passar opções para o serviço WhatsApp
+    const options = {};
+    if (ignoreGroups !== undefined) {
+      options.ignoreGroups = !!ignoreGroups;
+    }
+    
+    await whatsappService.initializeWhatsApp(clientId, options);
     
     return res.json({
       success: true,
-      message: `Instância para cliente ${clientId} inicializada com sucesso`
+      message: `Instância para cliente ${clientId} inicializada com sucesso`,
+      config: {
+        ignoreGroups: ignoreGroups !== undefined ? !!ignoreGroups : undefined
+      }
     });
   } catch (error) {
     console.error('Erro ao inicializar instância:', error);
@@ -301,6 +310,35 @@ const checkNumberExists = async (req, res) => {
   }
 };
 
+/**
+ * Atualiza as configurações de uma instância
+ */
+const updateConfig = async (req, res) => {
+  try {
+    const { clientId = 'default', ignoreGroups } = req.body;
+    
+    // Validar parâmetros
+    if (ignoreGroups === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Pelo menos uma configuração deve ser fornecida'
+      });
+    }
+    
+    const result = whatsappService.updateInstanceConfig(clientId, {
+      ignoreGroups: !!ignoreGroups
+    });
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao atualizar configurações:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao atualizar configurações'
+    });
+  }
+};
+
 module.exports = {
   getQrCode,
   getQrCodeImage,
@@ -313,5 +351,6 @@ module.exports = {
   getInstances,
   initInstance,
   deleteInstance,
-  checkNumberExists
+  checkNumberExists,
+  updateConfig
 };

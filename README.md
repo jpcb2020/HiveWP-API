@@ -10,6 +10,7 @@ Uma API RESTful para interagir com o WhatsApp Web usando a biblioteca Baileys.
 - Gerenciamento de conexão
 - Monitoramento de status
 - **Múltiplas instâncias** para gerenciar diferentes clientes
+- **Ignorar mensagens de grupos** para filtrar apenas mensagens individuais
 
 ## Requisitos
 
@@ -33,6 +34,14 @@ npm install
 ```bash
 cp .env.example .env
 ```
+
+Edite o arquivo `.env` para adicionar sua chave de API:
+```
+API_KEY=sua_chave_api_secreta
+IGNORE_GROUPS=false
+```
+> Nota: A API_KEY é necessária para autenticação. Você pode gerar uma chave aleatória usando o comando: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+> Nota: IGNORE_GROUPS pode ser definido como 'true' para ignorar mensagens de grupos globalmente em todas as instâncias
 
 4. Inicie o servidor:
 ```bash
@@ -64,9 +73,11 @@ http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
 
 - **GET /api/whatsapp/instances** - Lista todas as instâncias ativas
 - **POST /api/whatsapp/instance/init** - Inicializa uma nova instância
-  - Body: `{ "clientId": "identificador_unico_do_cliente" }`
+  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false }`
 - **POST /api/whatsapp/instance/delete** - Deleta uma instância existente
   - Body: `{ "clientId": "identificador_unico_do_cliente" }`
+- **POST /api/whatsapp/instance/config** - Atualiza configurações de uma instância existente
+  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false }`
 - **POST /api/whatsapp/check-number** - Verifica se um número está registrado no WhatsApp
   - Body: `{ "clientId": "identificador_unico_do_cliente", "phoneNumber": "5511999999999" }`
 
@@ -102,6 +113,36 @@ http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
   - Nota: Formatos de áudio suportados: MP3 (audio/mpeg), M4A (audio/mp4), AAC (audio/aac), OGG (audio/ogg), OPUS (audio/opus), WAV (audio/wav), FLAC (audio/flac), WEBM (audio/webm)
   - Nota: O número de telefone é verificado antes do envio. Se não estiver registrado no WhatsApp, a API retornará um erro.
 
+## Autenticação da API
+
+A HiveWP API utiliza autenticação baseada em token para proteger todos os endpoints. Para acessar qualquer endpoint da API, você precisa incluir a API_KEY no cabeçalho de autorização:
+
+```
+Authorization: Bearer sua_chave_api_secreta
+```
+
+### Exemplos de uso com autenticação:
+
+```javascript
+// Exemplo de requisição autenticada
+fetch('http://localhost:3000/api/whatsapp/instances', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer sua_chave_api_secreta'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+### Notas sobre segurança:
+
+- A API_KEY deve ser mantida em segredo e nunca exposta em código frontend público
+- Todas as requisições sem o cabeçalho de autenticação correto serão rejeitadas com status 401
+- Para integração com aplicações frontend, recomenda-se utilizar um proxy ou backend intermediário que gerencie a API_KEY
+- O frontend da aplicação armazena a API_KEY no localStorage do navegador para facilitar o desenvolvimento
+
 ## Usando o Sistema de Múltiplas Instâncias
 
 O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsApp simultaneamente na mesma API. Cada cliente possui sua própria sessão, credenciais e estado de conexão.
@@ -114,7 +155,8 @@ O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsA
    Content-Type: application/json
 
    {
-     "clientId": "cliente1"
+     "clientId": "cliente1",
+     "ignoreGroups": true // Opcional: configurar a instância para ignorar mensagens de grupos
    }
    ```
 
@@ -171,7 +213,8 @@ fetch('http://localhost:3000/api/whatsapp/instance/init', {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    clientId: 'clienteA'
+    clientId: 'clienteA',
+    ignoreGroups: true // Opcional: configurar a instância para ignorar mensagens de grupos
   }),
 })
 .then(response => response.json())
@@ -288,6 +331,23 @@ fetch('http://localhost:3000/api/whatsapp/check-number', {
     console.log('Número não está registrado no WhatsApp');
   }
 });
+```
+
+### Configurar uma instância para ignorar mensagens de grupos
+
+```javascript
+fetch('http://localhost:3000/api/whatsapp/instance/config', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    clientId: 'clienteA',
+    ignoreGroups: true // true para ignorar mensagens de grupos, false para processá-las
+  }),
+})
+.then(response => response.json())
+.then(data => console.log(data));
 ```
 
 ## Notas importantes

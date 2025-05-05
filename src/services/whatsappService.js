@@ -32,6 +32,9 @@ let cacheOperationCounter = 0;
 // Frequência de limpeza (a cada 1000 operações)
 const CACHE_CLEANUP_FREQUENCY = 1000;
 
+// Configuração global para ignorar grupos (pode ser sobrescrita por instância)
+const DEFAULT_IGNORE_GROUPS = process.env.IGNORE_GROUPS === 'true' || false;
+
 /**
  * Limpa entradas antigas do cache - executado apenas ocasionalmente
  * para manter desempenho máximo
@@ -99,15 +102,19 @@ const getActiveInstances = () => {
   return Object.keys(instances).map(id => ({
     id,
     connected: instances[id]?.isConnected || false,
-    status: instances[id]?.connectionStatus || 'disconnected'
+    status: instances[id]?.connectionStatus || 'disconnected',
+    config: {
+      ignoreGroups: instances[id]?.ignoreGroups || false
+    }
   }));
 };
 
 /**
  * Inicializa a conexão com o WhatsApp para um cliente específico
  * @param {string} clientId - Identificador único do cliente
+ * @param {object} options - Opções de configuração adicionais
  */
-const initializeWhatsApp = async (clientId = 'default') => {
+const initializeWhatsApp = async (clientId = 'default', options = {}) => {
   try {
     // Criar diretório específico para o cliente se não existir
     const SESSION_PATH = path.join(SESSION_DIR, clientId);
@@ -127,8 +134,12 @@ const initializeWhatsApp = async (clientId = 'default') => {
         sock: null,
         qrText: '',
         isConnected: false,
-        connectionStatus: 'disconnected'
+        connectionStatus: 'disconnected',
+        ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : DEFAULT_IGNORE_GROUPS
       };
+    } else if (options.ignoreGroups !== undefined) {
+      // Atualizar configuração se fornecida
+      instances[clientId].ignoreGroups = options.ignoreGroups;
     }
 
     // Criar socket do WhatsApp
@@ -195,6 +206,15 @@ const initializeWhatsApp = async (clientId = 'default') => {
       const message = m.messages[0];
       
       if (!message.key.fromMe && m.type === 'notify') {
+        // Verificar se é uma mensagem de grupo (remoteJid termina com @g.us)
+        const isGroupMessage = message.key.remoteJid?.endsWith('@g.us') || false;
+        
+        // Verificar se devemos ignorar esta mensagem de grupo
+        if (isGroupMessage && instances[clientId].ignoreGroups) {
+          console.log(`[${clientId}] Mensagem de grupo ignorada: ${message.key.remoteJid}`);
+          return; // Não processa mensagens de grupo se ignoreGroups estiver ativado
+        }
+        
         console.log(`[${clientId}] Nova mensagem recebida:`, JSON.stringify(message, null, 2));
         
         // Aqui você pode adicionar lógica para processar mensagens recebidas
@@ -758,6 +778,41 @@ const deleteInstance = async (clientId = 'default') => {
   }
 };
 
+/**
+ * Atualiza as configurações de uma instância específica
+ * @param {string} clientId - Identificador do cliente
+ * @param {object} config - Objeto com as configurações a serem atualizadas
+ */
+const updateInstanceConfig = (clientId = 'default', config = {}) => {
+  try {
+    if (!instances[clientId]) {
+      return {
+        success: false,
+        error: `Cliente ${clientId} não encontrado`
+      };
+    }
+    
+    // Atualizar configuração para ignorar grupos se fornecida
+    if (config.ignoreGroups !== undefined) {
+      instances[clientId].ignoreGroups = !!config.ignoreGroups;
+    }
+    
+    return {
+      success: true,
+      message: `Configurações do cliente ${clientId} atualizadas com sucesso`,
+      currentConfig: {
+        ignoreGroups: instances[clientId].ignoreGroups
+      }
+    };
+  } catch (error) {
+    console.error(`[${clientId}] Erro ao atualizar configurações:`, error);
+    return {
+      success: false,
+      error: error.message || 'Erro ao atualizar configurações'
+    };
+  }
+};
+
 module.exports = {
   initializeWhatsApp,
   sendTextMessage,
@@ -771,5 +826,6 @@ module.exports = {
   deleteInstance,
   loadExistingSessions,
   checkNumberExists,
-  validatePhoneNumber
+  validatePhoneNumber,
+  updateInstanceConfig
 };
