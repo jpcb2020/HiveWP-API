@@ -15,6 +15,7 @@ const cors = require('cors');
 const path = require('path');
 const whatsappRoutes = require('./routes/whatsappRoutes');
 const whatsappService = require('./services/whatsappService');
+const authMiddleware = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,8 +31,8 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 // Configurar rotas API
 app.use('/api/whatsapp', whatsappRoutes);
 
-// Rota básica para verificar se o servidor está rodando
-app.get('/api/status', (req, res) => {
+// Rota básica para verificar se o servidor está rodando (protegida por autenticação)
+app.get('/api/status', authMiddleware, (req, res) => {
   res.json({ status: 'online', message: 'HiveWP API está rodando!' });
 });
 
