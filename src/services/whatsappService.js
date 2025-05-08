@@ -1,3 +1,6 @@
+// Garantir que o polyfill de crypto foi carregado
+require('../utils/crypto-polyfill');
+
 const { default: makeWASocket, 
   DisconnectReason, 
   useMultiFileAuthState,
@@ -149,17 +152,34 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       }
     }
 
-    // Criar socket do WhatsApp
+    // Configuração de logger personalizada para reduzir ruído no terminal
+    const logger = pino({
+      level: process.env.BAILEYS_LOG_LEVEL || 'warn',  // Usar 'warn' como padrão, mas permitir configuração
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          translateTime: 'SYS:standard',
+          ignore: 'hostname,pid',
+        },
+      },
+    });
+    
+    // Criar socket do WhatsApp com configurações otimizadas
     instances[clientId].sock = makeWASocket({
       version,
-      logger: pino({ level: 'silent' }),
+      logger: logger,
       printQRInTerminal: true,
       auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+        keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
       browser: ['HiveWP API', 'Chrome', '104.0.0'],
-      syncFullHistory: false
+      syncFullHistory: false,
+      markOnlineOnConnect: false,  // Reduzir carga no servidor
+      retryRequestDelayMs: 2000,   // Aumentar tempo entre tentativas
+      connectTimeoutMs: 30000,     // Timeout para conexão inicial
+      keepAliveIntervalMs: 25000,  // Manter conexão ativa
+      emitOwnEvents: false         // Reduzir processamento de eventos
     });
 
     const sock = instances[clientId].sock;
@@ -189,11 +209,26 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         if (connection === 'close') {
           instances[clientId].isConnected = false;
           
-          // Tentar reconectar se não for um logout
+          // Tentar reconectar se não for um logout, mas com backoff exponencial
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           if (statusCode !== DisconnectReason.loggedOut) {
-            console.log(`[${clientId}] Reconectando...`);
-            initializeWhatsApp(clientId);
+            // Obter tentativas de reconexão atuais ou iniciar com 0
+            instances[clientId].reconnectAttempts = instances[clientId].reconnectAttempts || 0;
+            instances[clientId].reconnectAttempts++;
+            
+            // Cálculo de backoff exponencial: entre 3-10 segundos baseado no número de tentativas
+            // Limitado a no máximo 5 minutos entre tentativas
+            const delaySeconds = Math.min(300, Math.pow(1.5, Math.min(instances[clientId].reconnectAttempts, 10)) * 3);
+            
+            console.log(`[${clientId}] Reconectando em ${delaySeconds.toFixed(0)} segundos... (Tentativa ${instances[clientId].reconnectAttempts})`);
+            
+            // Agendar reconexão com atraso
+            setTimeout(() => {
+              // Verificar se a instância ainda existe e precisa reconectar
+              if (instances[clientId] && !instances[clientId].isConnected) {
+                initializeWhatsApp(clientId);
+              }
+            }, delaySeconds * 1000);
           } else {
             console.log(`[${clientId}] Desconectado do WhatsApp (logout).`);
             // Remover credenciais de sessão

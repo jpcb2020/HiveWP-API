@@ -1,4 +1,7 @@
-// Configurar dotenv para variáveis de ambiente logo no início
+// Carregar o polyfill de crypto antes de qualquer outra coisa
+require('./utils/crypto-polyfill');
+
+// Configurar dotenv para variáveis de ambiente
 require('dotenv').config();
 
 // Verificar se API_KEY está configurada
