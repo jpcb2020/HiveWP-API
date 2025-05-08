@@ -8,7 +8,6 @@ require('dotenv').config();
 if (!process.env.API_KEY) {
   console.error('\x1b[31m%s\x1b[0m', 'ERRO: API_KEY não encontrada no arquivo .env!');
   console.log('\x1b[33m%s\x1b[0m', 'Por favor, crie um arquivo .env na raiz do projeto com o seguinte conteúdo:');
-  console.log('\x1b[36m%s\x1b[0m', 'API_KEY=47ec728124b69c04843556078d9033c41ace727c653a6d0072951420d4cdfc17');
   console.log('\x1b[33m%s\x1b[0m', 'Ou substitua pelo seu próprio código aleatório de segurança.');
   process.exit(1);
 }
