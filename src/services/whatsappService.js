@@ -24,6 +24,19 @@ if (!fs.existsSync(SESSION_DIR)) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 }
 
+// Nome do arquivo que armazena metadados da instância
+const INSTANCE_METADATA_FILE = 'instance_metadata.json';
+
+// Controle de frequência para salvamento de metadados
+const metadataLastSaved = new Map(); // Armazena o timestamp do último salvamento por clientId
+const metadataCache = new Map(); // Cache do último estado salvo para comparação
+
+// Tempo mínimo entre salvamentos consecutivos (em ms)
+const METADATA_SAVE_THROTTLE = 5000; // 5 segundos
+
+// Estados importantes que sempre devem ser salvos, independente do throttling
+const CRITICAL_STATES = ['created', 'waiting_scan', 'connected', 'disconnected', 'logged_out'];
+
 // Cache para armazenar resultados de verificação de números (para evitar verificações repetidas)
 const numberVerificationCache = new Map();
 // Tempo de expiração do cache em milissegundos (2 horas)
@@ -58,6 +71,112 @@ const cleanExpiredCacheEntries = () => {
 };
 
 /**
+ * Salva os metadados de uma instância para persistência
+ * @param {string} clientId - ID da instância
+ * @param {object} metadata - Dados a serem salvos
+ * @param {boolean} force - Forçar salvamento, ignorando throttling
+ */
+const saveInstanceMetadata = (clientId, metadata = {}, force = false) => {
+  try {
+    const now = Date.now();
+    const lastSaved = metadataLastSaved.get(clientId) || 0;
+    const timeSinceLastSave = now - lastSaved;
+    const hasCriticalChange = metadata.status && CRITICAL_STATES.includes(metadata.status);
+    
+    // Verificar se devemos pular este salvamento devido ao throttling
+    if (!force && !hasCriticalChange && timeSinceLastSave < METADATA_SAVE_THROTTLE) {
+      // Salvar apenas em memória para uso posterior
+      const cachedData = metadataCache.get(clientId) || {};
+      metadataCache.set(clientId, { ...cachedData, ...metadata });
+      return;
+    }
+    
+    const sessionPath = path.join(SESSION_DIR, clientId);
+    
+    // Criar diretório da sessão se não existir
+    if (!fs.existsSync(sessionPath)) {
+      fs.mkdirSync(sessionPath, { recursive: true });
+    }
+    
+    // Combinar metadata existente com os novos dados
+    let existingData = {};
+    const metadataPath = path.join(sessionPath, INSTANCE_METADATA_FILE);
+    
+    if (fs.existsSync(metadataPath)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      } catch (err) {
+        console.error(`[${clientId}] Erro ao ler metadados existentes:`, err);
+      }
+    }
+    
+    // Incluir qualquer dado em cache que não foi salvo devido ao throttling
+    const cachedData = metadataCache.get(clientId) || {};
+    
+    // Mesclar dados e salvar
+    const combinedData = {
+      ...existingData,
+      ...cachedData, // Dados em cache pendentes
+      ...metadata,    // Dados atuais
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Verificar se há mudanças significativas comparando com o último estado salvo
+    const lastPersistedData = JSON.stringify(existingData);
+    const newData = JSON.stringify(combinedData);
+    
+    if (force || lastPersistedData !== newData) {
+      fs.writeFileSync(
+        metadataPath,
+        JSON.stringify(combinedData, null, 2)
+      );
+      
+      // Atualizar timestamp do último salvamento e limpar cache
+      metadataLastSaved.set(clientId, now);
+      metadataCache.set(clientId, {});
+      
+      // Reduzir verbosidade do log para estados não críticos
+      if (hasCriticalChange || force) {
+        console.log(`[${clientId}] Metadados da instância salvos`);
+      }
+    }
+  } catch (error) {
+    console.error(`[${clientId}] Erro ao salvar metadados:`, error);
+  }
+};
+
+/**
+ * Lê os metadados de uma instância
+ * @param {string} clientId - ID da instância
+ * @returns {object} Metadados da instância
+ */
+const readInstanceMetadata = (clientId) => {
+  try {
+    const metadataPath = path.join(SESSION_DIR, clientId, INSTANCE_METADATA_FILE);
+    
+    if (fs.existsSync(metadataPath)) {
+      return JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    }
+  } catch (error) {
+    console.error(`[${clientId}] Erro ao ler metadados:`, error);
+  }
+  
+  return null;
+};
+
+/**
+ * Verifica se uma instância existe (mesmo sem estar conectada)
+ * @param {string} clientId - ID da instância
+ * @returns {boolean} Verdadeiro se a instância existir
+ */
+const instanceExists = (clientId) => {
+  const sessionPath = path.join(SESSION_DIR, clientId);
+  const metadataPath = path.join(sessionPath, INSTANCE_METADATA_FILE);
+  
+  return fs.existsSync(metadataPath);
+};
+
+/**
  * Carrega todas as instâncias existentes na pasta de sessões
  */
 const loadExistingSessions = async () => {
@@ -74,10 +193,8 @@ const loadExistingSessions = async () => {
     
     // Inicializar cada instância encontrada
     for (const clientId of sessionDirs) {
-      // Verificar se há arquivos de autenticação na pasta
-      const authFilesExist = fs.existsSync(path.join(SESSION_DIR, clientId, 'creds.json'));
-      
-      if (authFilesExist) {
+      // Verificar se há metadados da instância
+      if (instanceExists(clientId)) {
         console.log(`Carregando instância: ${clientId}`);
         
         try {
@@ -126,6 +243,9 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       fs.mkdirSync(SESSION_PATH, { recursive: true });
     }
     
+    // Ler metadados existentes da instância
+    const metadata = readInstanceMetadata(clientId) || {};
+    
     // Obter as credenciais salvas
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_PATH);
     
@@ -139,8 +259,9 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         qrText: '',
         isConnected: false,
         connectionStatus: 'disconnected',
-        ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : DEFAULT_IGNORE_GROUPS,
-        webhookUrl: options.webhookUrl || ''
+        ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : (metadata.ignoreGroups || DEFAULT_IGNORE_GROUPS),
+        webhookUrl: options.webhookUrl || metadata.webhookUrl || '',
+        created: metadata.created || new Date().toISOString()
       };
     } else {
       // Atualizar configurações se fornecidas
@@ -151,6 +272,14 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         instances[clientId].webhookUrl = options.webhookUrl;
       }
     }
+    
+    // Salvar metadados logo que a instância é criada/atualizada
+    saveInstanceMetadata(clientId, {
+      ignoreGroups: instances[clientId].ignoreGroups,
+      webhookUrl: instances[clientId].webhookUrl,
+      created: instances[clientId].created,
+      status: 'created'
+    });
 
     // Configuração de logger personalizada para reduzir ruído no terminal
     const logger = pino({
@@ -192,6 +321,12 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       if (qr) {
         instances[clientId].qrText = qr;
         console.log(`[${clientId}] QR Code gerado. Escaneie para se conectar.`);
+        
+        // Atualizar status nos metadados
+        saveInstanceMetadata(clientId, {
+          lastQRTimestamp: new Date().toISOString(),
+          status: 'waiting_scan'
+        });
       }
 
       // Quando o status de conexão mudar
@@ -203,11 +338,23 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         if (connection === 'open') {
           instances[clientId].isConnected = true;
           console.log(`[${clientId}] Conectado com sucesso ao WhatsApp!`);
+          
+          // Atualizar status nos metadados
+          saveInstanceMetadata(clientId, {
+            status: 'connected',
+            lastConnection: new Date().toISOString()
+          });
         }
         
         // Se desconectado
         if (connection === 'close') {
           instances[clientId].isConnected = false;
+          
+          // Atualizar status nos metadados
+          saveInstanceMetadata(clientId, {
+            status: 'disconnected',
+            lastDisconnection: new Date().toISOString()
+          });
           
           // Tentar reconectar se não for um logout, mas com backoff exponencial
           const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -222,6 +369,12 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             
             console.log(`[${clientId}] Reconectando em ${delaySeconds.toFixed(0)} segundos... (Tentativa ${instances[clientId].reconnectAttempts})`);
             
+            // Salvar informações de reconexão nos metadados
+            saveInstanceMetadata(clientId, {
+              reconnectAttempts: instances[clientId].reconnectAttempts,
+              nextReconnectTime: new Date(Date.now() + delaySeconds * 1000).toISOString()
+            });
+            
             // Agendar reconexão com atraso
             setTimeout(() => {
               // Verificar se a instância ainda existe e precisa reconectar
@@ -231,9 +384,26 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             }, delaySeconds * 1000);
           } else {
             console.log(`[${clientId}] Desconectado do WhatsApp (logout).`);
-            // Remover credenciais de sessão
-            if (fs.existsSync(SESSION_PATH)) {
-              fs.rmSync(SESSION_PATH, { recursive: true, force: true });
+            // Atualizar metadados para indicar logout
+            saveInstanceMetadata(clientId, {
+              status: 'logged_out',
+              logoutTime: new Date().toISOString()
+            });
+            
+            // Remover apenas os arquivos de credenciais, preservando metadados
+            const credsPath = path.join(SESSION_PATH, 'creds.json');
+            if (fs.existsSync(credsPath)) {
+              console.log(`[${clientId}] Removendo apenas credenciais, preservando metadados.`);
+              fs.unlinkSync(credsPath);
+            }
+            
+            // Remover arquivos de chave para evitar problemas de autenticação
+            const authFilesPattern = /auth|pre-key|session|sender|app-state/;
+            const files = fs.readdirSync(SESSION_PATH);
+            for (const file of files) {
+              if (authFilesPattern.test(file)) {
+                fs.unlinkSync(path.join(SESSION_PATH, file));
+              }
             }
           }
         }
@@ -241,7 +411,14 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
     });
 
     // Salvar as credenciais quando atualizadas
-    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', async (creds) => {
+      await saveCreds();
+      
+      // Atualizar status nos metadados
+      saveInstanceMetadata(clientId, {
+        hasCredentials: true
+      });
+    });
     
     // Gerenciar eventos de mensagens
     sock.ev.on('messages.upsert', async (m) => {
@@ -905,12 +1082,28 @@ const updateInstanceConfig = (clientId = 'default', config = {}) => {
     }
     
     // Atualizar apenas as configurações fornecidas
+    let configChanged = false;
+    
     if (config.ignoreGroups !== undefined) {
       instances[clientId].ignoreGroups = !!config.ignoreGroups;
+      configChanged = true;
     }
     
     if (config.webhookUrl !== undefined) {
       instances[clientId].webhookUrl = config.webhookUrl;
+      configChanged = true;
+    }
+    
+    // Forçar o salvamento imediato dos metadados quando as configurações são alteradas
+    if (configChanged) {
+      // Salvar metadados com força=true para ignorar throttling
+      saveInstanceMetadata(clientId, {
+        ignoreGroups: instances[clientId].ignoreGroups,
+        webhookUrl: instances[clientId].webhookUrl,
+        configUpdatedAt: new Date().toISOString()
+      }, true);
+      
+      console.log(`[${clientId}] Configurações atualizadas e salvas imediatamente`);
     }
     
     return {
