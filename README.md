@@ -426,20 +426,156 @@ Quando uma mensagem é recebida, o seguinte JSON é enviado via POST para a URL 
 ```json
 {
   "clientId": "cliente1",
-  "messageType": "notify",
+  "timestamp": "2025-05-05T17:54:06-03:00",
   "message": {
-    "key": {
-      "remoteJid": "5511999999999@s.whatsapp.net",
-      "fromMe": false,
-      "id": "ABCDEF123456"
-    },
-    "message": {
-      "conversation": "Olá, como vai?"
-    }
+    "id": "ABCDEF123456",
+    "from": "5511999999999@s.whatsapp.net",
+    "fromMe": false,
+    "timestamp": 1620123456,
+    "isGroup": false,
+    "type": "text",
+    "body": "Olá, como vai?"
   },
-  "timestamp": "2025-05-05T17:54:06-03:00"
+  "originalMessage": {
+    // Objeto completo original da mensagem do WhatsApp (opcional)
+  }
 }
 ```
+
+### 💡 Estrutura Simplificada das Mensagens
+
+O sistema oferece uma estrutura simplificada para facilitar o processamento das mensagens, com os seguintes tipos:
+
+<details>
+<summary><b>💬 Mensagens de Texto</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "text",
+  "body": "Conteúdo da mensagem de texto",
+  "quotedMessage": { 
+    "id": "MSG-ORIGINAL",
+    "participant": "55119999999@s.whatsapp.net"
+  }
+}
+```
+> O campo `quotedMessage` está presente apenas se for uma resposta a outra mensagem.
+</details>
+
+<details>
+<summary><b>🎧 Mensagens de Áudio/PTT</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "audio", 
+  "seconds": 10,
+  "mimetype": "audio/ogg; codecs=opus",
+  "base64Audio": "base64-data..." 
+}
+```
+> O campo `type` pode ser `"audio"` para áudios comuns ou `"ptt"` para mensagens de voz (push-to-talk).
+>
+> O campo `base64Audio` contém o conteúdo completo do áudio automaticamente extraído e convertido para base64.
+</details>
+
+<details>
+<summary><b>📷 Mensagens com Imagens</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "image",
+  "caption": "Legenda da imagem (se houver)",
+  "mimetype": "image/jpeg"
+}
+```
+</details>
+
+<details>
+<summary><b>🎥 Mensagens com Vídeos</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "video",
+  "caption": "Legenda do vídeo (se houver)",
+  "mimetype": "video/mp4"
+}
+```
+</details>
+
+<details>
+<summary><b>📄 Documentos</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "document",
+  "fileName": "documento.pdf",
+  "mimetype": "application/pdf"
+}
+```
+</details>
+
+<details>
+<summary><b>📍 Localização</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "location",
+  "latitude": -23.5505,
+  "longitude": -46.6333
+}
+```
+</details>
+
+<details>
+<summary><b>💼 Contatos</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "contact",
+  "name": "Nome do Contato",
+  "vcard": "vCard em formato de string"
+}
+```
+</details>
+
+<details>
+<summary><b>👍 Reações</b></summary>
+
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "reaction",
+  "emoji": "👍",
+  "targetMessageId": "MSG-ALVO"
+}
+```
+</details>
+
+### 💾 Extração Automática de Áudio em Base64
+
+Quando um cliente envia uma mensagem de áudio (comum ou PTT), o sistema:
+
+1. Detecta automaticamente o tipo de mensagem
+2. Baixa o conteúdo do áudio dos servidores do WhatsApp
+3. Converte para formato base64
+4. Inclui o conteúdo no campo `base64Audio` da mensagem simplificada
+
+Este processamento é feito de forma eficiente, mantendo a alta performance da API.
 
 ### ⚙️ Melhores Práticas para Webhooks
 
