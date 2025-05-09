@@ -251,20 +251,115 @@ Quando uma mensagem é recebida, o seguinte JSON é enviado via POST para a URL 
 ```json
 {
   "clientId": "cliente1",
-  "messageType": "notify",
+  "timestamp": "2025-05-05T17:54:06-03:00",
   "message": {
-    // Objeto completo da mensagem do WhatsApp
-    "key": {
-      "remoteJid": "5511999999999@s.whatsapp.net",
-      "fromMe": false,
-      "id": "ABCDEF123456"
-    },
-    "message": {
-      "conversation": "Olá, como vai?"
-    },
-    // ... outros campos da mensagem
+    "id": "ABCDEF123456",
+    "from": "5511999999999@s.whatsapp.net",
+    "fromMe": false,
+    "timestamp": 1620123456,
+    "isGroup": false,
+    "type": "text",
+    "body": "Olá, como vai?"
   },
-  "timestamp": "2025-05-05T17:54:06-03:00"
+  "originalMessage": {
+    // Objeto completo original da mensagem do WhatsApp (opcional)
+  }
+}
+```
+
+### Estrutura simplificada das mensagens:
+
+O sistema oferece uma estrutura simplificada para facilitar o processamento das mensagens, com os seguintes tipos:
+
+1. **Mensagens de texto**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "text",
+  "body": "Conteúdo da mensagem de texto",
+  "quotedMessage": { // Opcional - presente apenas se for uma resposta a outra mensagem
+    "id": "MSG-ORIGINAL",
+    "participant": "55119999999@s.whatsapp.net"
+  }
+}
+```
+
+2. **Mensagens de áudio/PTT**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "audio", // ou "ptt" para mensagens de voz
+  "seconds": 10, // duração em segundos
+  "mimetype": "audio/ogg; codecs=opus",
+  "base64Audio": "base64-data..." // conteúdo do áudio em base64
+}
+```
+
+3. **Mensagens com imagens**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "image",
+  "caption": "Legenda da imagem (se houver)",
+  "mimetype": "image/jpeg"
+}
+```
+
+4. **Mensagens com vídeos**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "video",
+  "caption": "Legenda do vídeo (se houver)",
+  "mimetype": "video/mp4"
+}
+```
+
+5. **Documentos**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "document",
+  "fileName": "documento.pdf",
+  "mimetype": "application/pdf"
+}
+```
+
+6. **Localização**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "location",
+  "latitude": -23.5505,
+  "longitude": -46.6333
+}
+```
+
+7. **Contatos**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "contact",
+  "name": "Nome do Contato",
+  "vcard": "vCard em formato de string"
+}
+```
+
+8. **Reações**:
+```json
+{
+  "id": "MSG123456",
+  "from": "5511999999999@s.whatsapp.net",
+  "type": "reaction",
+  "emoji": "👍",
+  "targetMessageId": "MSG-ALVO"
 }
 ```
 
