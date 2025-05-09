@@ -1,526 +1,698 @@
-# HiveWP API - API de WhatsApp baseada em Baileys
+<div align="center">
 
-Uma API RESTful para interagir com o WhatsApp Web usando a biblioteca Baileys.
+# 🐝 HiveWP API
 
-## Funcionalidades
+### API de WhatsApp de alta performance baseada em Baileys
 
-- Autenticação via QR Code
-- Envio de mensagens de texto
-- Envio de mídias (imagens, documentos, vídeos, áudios)
-- Gerenciamento de conexão
-- Monitoramento de status
-- **Múltiplas instâncias** para gerenciar diferentes clientes
-- **Ignorar mensagens de grupos** para filtrar apenas mensagens individuais
-- **Webhooks** para receber notificações de mensagens em tempo real
+*Uma solução RESTful para integrar WhatsApp em suas aplicações*
 
-## Requisitos
+</div>
+
+---
+
+## 📋 Índice
+
+- [Visão Geral](#visão-geral)
+- [Funcionalidades](#funcionalidades)
+- [Requisitos](#requisitos)
+- [Instalação](#instalação)
+- [Usando a API](#usando-a-api)
+- [Endpoints](#endpoints-da-api)
+- [Sistema de Múltiplas Instâncias](#usando-o-sistema-de-múltiplas-instâncias)
+- [Webhooks](#webhooks)
+- [Exemplos](#exemplos-de-uso)
+
+---
+
+## 🌐 Visão Geral
+
+HiveWP API é uma interface RESTful moderna e de alta performance para integrar o WhatsApp com seus sistemas, aplicativos e serviços. Construída sobre a poderosa biblioteca Baileys, oferece uma forma simples e eficiente de automatizar comunicações via WhatsApp.
+
+## 🚀 Funcionalidades
+
+| Recurso | Descrição |
+|---------|------------|
+| 🔐 **Autenticação** | Conexão simples via QR Code |
+| 💬 **Mensagens** | Envio de mensagens de texto com formatação |
+| 📁 **Mídia** | Suporte a imagens, documentos, vídeos e áudios |
+| 🔄 **Gerenciamento** | Controle total sobre a conexão e status |
+| 👥 **Multi-instância** | Gerencie múltiplos clientes simultaneamente |
+| 🔍 **Filtros** | Opção para ignorar mensagens de grupos |
+| 🔔 **Webhooks** | Notificações em tempo real para mensagens recebidas |
+
+## 📋 Requisitos
 
 - Node.js v14 ou superior
 - NPM ou Yarn
 
-## Instalação
+## ⚙️ Instalação
 
-1. Clone o repositório:
+### 1. Clone o repositório
+
 ```bash
 git clone https://github.com/seu-usuario/HiveWP-API.git
 cd HiveWP-API
 ```
 
-2. Instale as dependências:
+### 2. Instale as dependências
+
 ```bash
 npm install
 ```
 
-3. Configure as variáveis de ambiente:
+### 3. Configure as variáveis de ambiente
+
 ```bash
 cp .env.example .env
 ```
 
 Edite o arquivo `.env` para adicionar sua chave de API:
-```
+
+```properties
+PORT=3000
 API_KEY=sua_chave_api_secreta
 IGNORE_GROUPS=false
 ```
-> Nota: A API_KEY é necessária para autenticação. Você pode gerar uma chave aleatória usando o comando: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-> Nota: IGNORE_GROUPS pode ser definido como 'true' para ignorar mensagens de grupos globalmente em todas as instâncias
 
-4. Inicie o servidor:
+> **Dica de Segurança**: Gere uma chave aleatória forte usando:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+
+### 4. Inicie o servidor
+
+Para produção:
 ```bash
 npm start
 ```
 
-Para desenvolvimento:
+Para desenvolvimento (com recarga automática):
 ```bash
 npm run dev
 ```
 
-5. Inicialize uma instância e acesse o QR Code para conectar seu WhatsApp:
-```
+### 5. Conecte seu WhatsApp
+
+#### Inicialize uma instância
+
+```http
 POST http://localhost:3000/api/whatsapp/instance/init 
 Content-Type: application/json
+Authorization: Bearer sua_chave_api_secreta
 
 {
   "clientId": "cliente1",
-  "ignoreGroups": true, // Opcional: configurar a instância para ignorar mensagens de grupos
-  "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
+  "ignoreGroups": true,         // Opcional: ignorar mensagens de grupos
+  "webhookUrl": "https://sua-url.com/webhook"  // Opcional: receber notificações
 }
 ```
 
-```
-http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
-```
-
-## Endpoints da API
-
-### Gerenciamento de Instâncias
-
-- **GET /api/whatsapp/instances** - Lista todas as instâncias ativas
-- **POST /api/whatsapp/instance/init** - Inicializa uma nova instância
-  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false, "webhookUrl": "https://sua-url.com/webhook" }`
-- **POST /api/whatsapp/instance/delete** - Deleta uma instância existente
-  - Body: `{ "clientId": "identificador_unico_do_cliente" }`
-- **POST /api/whatsapp/instance/config** - Atualiza configurações de uma instância existente
-  - Body: `{ "clientId": "identificador_unico_do_cliente", "ignoreGroups": true|false, "webhookUrl": "https://sua-url.com/webhook" }`
-- **POST /api/whatsapp/check-number** - Verifica se um número está registrado no WhatsApp
-  - Body: `{ "clientId": "identificador_unico_do_cliente", "phoneNumber": "5511999999999" }`
-
-### Conexão e status
-
-- **GET /api/whatsapp/qr** - Obtém o QR Code para autenticação (formato JSON)
-  - Query: `?clientId=identificador_do_cliente` (opcional, padrão é 'default')
-- **GET /api/whatsapp/qr-image** - Obtém o QR Code como imagem PNG
-  - Query: `?clientId=identificador_do_cliente` (opcional, padrão é 'default')
-- **GET /api/whatsapp/status** - Verifica o status da conexão
-  - Query: `?clientId=identificador_do_cliente` (opcional, padrão é 'default')
-- **POST /api/whatsapp/restart** - Reinicia a conexão
-  - Body: `{ "clientId": "identificador_do_cliente" }` (opcional, padrão é 'default')
-- **POST /api/whatsapp/logout** - Desconecta do WhatsApp
-  - Body: `{ "clientId": "identificador_do_cliente" }` (opcional, padrão é 'default')
-
-### Envio de mensagens
-
-- **POST /api/whatsapp/send/text** - Envia uma mensagem de texto
-  - Body: `{ "clientId": "identificador_do_cliente", "phoneNumber": "5511999999999", "message": "Olá, mundo!", "simulateTyping": false, "typingDurationMs": 1500 }`
-  - Nota: Os parâmetros `simulateTyping` e `typingDurationMs` são opcionais. Se `simulateTyping` for `true`, o WhatsApp mostrará o status "digitando..." por `typingDurationMs` milissegundos antes de enviar a mensagem.
-  - Nota: O número de telefone é verificado antes do envio. Se não estiver registrado no WhatsApp, a API retornará um erro.
-
-- **POST /api/whatsapp/send/media** - Envia uma mídia (imagem, documento, vídeo ou áudio)
-  - Body: `{ "clientId": "identificador_do_cliente", "phoneNumber": "5511999999999", "mediaUrl": "https://exemplo.com/arquivo.jpg", "filename": "nome_do_arquivo.jpg", "mimetype": "image/jpeg", "caption": "Descrição da mídia" }`
-  - Nota: Os parâmetros `filename` e `mimetype` são opcionais. Se não fornecidos, serão detectados automaticamente pela extensão do arquivo.
-  - Nota: O tipo de mídia (imagem, vídeo, áudio ou documento) é automaticamente detectado pelo mimetype.
-  - Nota: O número de telefone é verificado antes do envio. Se não estiver registrado no WhatsApp, a API retornará um erro.
-
-- **POST /api/whatsapp/send/audio** - Envia uma mensagem de áudio (PTT/Voice Message)
-  - Body: `{ "clientId": "identificador_do_cliente", "phoneNumber": "5511999999999", "audioUrl": "https://exemplo.com/audio.mp3", "mimetype": "audio/mpeg" }`
-  - Nota: O parâmetro `mimetype` é opcional. Se não fornecido, será detectado automaticamente pela extensão do arquivo.
-  - Nota: Formatos de áudio suportados: MP3 (audio/mpeg), M4A (audio/mp4), AAC (audio/aac), OGG (audio/ogg), OPUS (audio/opus), WAV (audio/wav), FLAC (audio/flac), WEBM (audio/webm)
-  - Nota: O número de telefone é verificado antes do envio. Se não estiver registrado no WhatsApp, a API retornará um erro.
-
-## Autenticação da API
-
-A HiveWP API utiliza autenticação baseada em token para proteger todos os endpoints. Para acessar qualquer endpoint da API, você precisa incluir a API_KEY no cabeçalho de autorização:
+#### Escaneie o QR Code
 
 ```
+GET http://localhost:3000/api/whatsapp/qr-image?clientId=cliente1
 Authorization: Bearer sua_chave_api_secreta
 ```
 
-### Exemplos de uso com autenticação:
+## 📂 Endpoints da API
+
+Todos os endpoints da API requerem autenticação via header `Authorization: Bearer sua_chave_api_secreta`.
+
+### Gerenciamento de Instâncias
+
+<details>
+<summary>🔽 Expandir Endpoints de Gerenciamento</summary>
+
+#### Lista todas as instâncias ativas
+```http
+GET /api/whatsapp/instances
+```
+
+#### Inicializa uma nova instância
+```http
+POST /api/whatsapp/instance/init
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",      // Obrigatório
+  "ignoreGroups": true,                      // Opcional
+  "webhookUrl": "https://sua-url.com/webhook" // Opcional
+}
+```
+
+#### Deleta uma instância existente
+```http
+POST /api/whatsapp/instance/delete
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente"      // Obrigatório
+}
+```
+
+#### Atualiza configurações de uma instância
+```http
+POST /api/whatsapp/instance/config
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",
+  "ignoreGroups": true,                      // Opcional
+  "webhookUrl": "https://sua-url.com/webhook" // Opcional
+}
+```
+
+#### Verifica se um número está registrado no WhatsApp
+```http
+POST /api/whatsapp/check-number
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",      // Opcional (default: 'default')
+  "phoneNumber": "5511999999999"               // Obrigatório
+}
+```
+</details>
+
+### Conexão e Status
+
+<details>
+<summary>🔽 Expandir Endpoints de Conexão</summary>
+
+#### Obtém o QR Code para autenticação (formato JSON)
+```http
+GET /api/whatsapp/qr?clientId=identificador_do_cliente
+```
+> *clientId é opcional, padrão: 'default'*
+
+#### Obtém o QR Code como imagem PNG
+```http
+GET /api/whatsapp/qr-image?clientId=identificador_do_cliente
+```
+> *clientId é opcional, padrão: 'default'*
+
+#### Verifica o status da conexão
+```http
+GET /api/whatsapp/status?clientId=identificador_do_cliente
+```
+> *clientId é opcional, padrão: 'default'*
+
+#### Reinicia a conexão
+```http
+POST /api/whatsapp/restart
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente"      // Opcional (default: 'default')
+}
+```
+
+#### Desconecta do WhatsApp
+```http
+POST /api/whatsapp/logout
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente"      // Opcional (default: 'default')
+}
+```
+</details>
+
+### Envio de Mensagens
+
+<details>
+<summary>🔽 Expandir Endpoints de Mensagens</summary>
+
+#### Envia uma mensagem de texto
+```http
+POST /api/whatsapp/send/text
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",  // Opcional (default: 'default')
+  "phoneNumber": "5511999999999",         // Obrigatório
+  "message": "Olá, mundo!",              // Obrigatório
+  "simulateTyping": false,               // Opcional
+  "typingDurationMs": 1500               // Opcional, se simulateTyping=true
+}
+```
+
+> **Nota:** Se `simulateTyping` for `true`, o WhatsApp mostrará o status "digitando..." por `typingDurationMs` milissegundos antes de enviar a mensagem.
+
+#### Envia uma mídia (imagem, documento, vídeo)
+```http
+POST /api/whatsapp/send/media
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",          // Opcional (default: 'default')
+  "phoneNumber": "5511999999999",                 // Obrigatório
+  "mediaUrl": "https://exemplo.com/arquivo.jpg",  // Obrigatório
+  "filename": "nome_do_arquivo.jpg",              // Opcional
+  "mimetype": "image/jpeg",                       // Opcional
+  "caption": "Descrição da mídia"                // Opcional
+}
+```
+
+> **Nota:** Os parâmetros `filename` e `mimetype` são detectados automaticamente a partir da URL se não fornecidos.
+
+#### Envia uma mensagem de áudio (PTT/Voice Message)
+```http
+POST /api/whatsapp/send/audio
+Content-Type: application/json
+
+{
+  "clientId": "identificador_do_cliente",          // Opcional (default: 'default')
+  "phoneNumber": "5511999999999",                 // Obrigatório
+  "audioUrl": "https://exemplo.com/audio.mp3",    // Obrigatório
+  "mimetype": "audio/mpeg"                        // Opcional
+}
+```
+
+> **Formatos de áudio suportados:** MP3, M4A, AAC, OGG, OPUS, WAV, FLAC, WEBM
+</details>
+
+## 🔐 Autenticação da API
+
+A HiveWP API utiliza autenticação baseada em token para proteger todos os endpoints. 
+
+### Incluindo autenticação nas requisições
+
+Para todas as requisições, adicione o seguinte cabeçalho HTTP:
+
+```http
+Authorization: Bearer sua_chave_api_secreta
+```
+
+### Exemplo de requisição autenticada (JavaScript)
 
 ```javascript
-// Exemplo de requisição autenticada
-fetch('http://localhost:3000/api/whatsapp/instances', {
+// Usando fetch API para fazer requisição autenticada
+const fetchOptions = {
   method: 'GET',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer sua_chave_api_secreta'
   }
-})
-.then(response => response.json())
-.then(data => console.log(data));
+};
+
+fetch('http://localhost:3000/api/whatsapp/instances', fetchOptions)
+  .then(response => {
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+    return response.json();
+  })
+  .then(data => console.log('Instâncias ativas:', data))
+  .catch(error => console.error('Falha na requisição:', error));
 ```
 
-### Notas sobre segurança:
+### ⚠️ Melhores práticas de segurança
 
-- A API_KEY deve ser mantida em segredo e nunca exposta em código frontend público
-- Todas as requisições sem o cabeçalho de autenticação correto serão rejeitadas com status 401
-- Para integração com aplicações frontend, recomenda-se utilizar um proxy ou backend intermediário que gerencie a API_KEY
-- O frontend da aplicação armazena a API_KEY no localStorage do navegador para facilitar o desenvolvimento
+| Diretriz | Descrição |
+|---------|------------|
+| 🔒 **Privacidade** | Mantenha sua API_KEY em segredo e nunca a exponha em código frontend público |
+| 🚫 **Rejeição** | Requisições sem autenticação válida são rejeitadas com status 401 |
+| 🚀 **Integração** | Para aplicações frontend, use um proxy ou backend intermediário para gerenciar a API_KEY |
+| 🔄 **Rotação** | Troque periodicamente sua API_KEY para maior segurança |
 
-## Usando o Sistema de Múltiplas Instâncias
+## 👥 Sistema de Múltiplas Instâncias
 
-O sistema de múltiplas instâncias permite gerenciar vários clientes de WhatsApp simultaneamente na mesma API. Cada cliente possui sua própria sessão, credenciais e estado de conexão.
+O HiveWP API permite gerenciar vários clientes WhatsApp simultaneamente através do sistema de múltiplas instâncias.
 
-### Como Usar:
+<div align="center">
 
-1. **Inicializar uma nova instância para um cliente**:
-   ```
-   POST /api/whatsapp/instance/init
-   Content-Type: application/json
+![Múltiplas Instâncias](./.github/images/multi-instance.png)
 
-   {
-     "clientId": "cliente1",
-     "ignoreGroups": true, // Opcional: configurar a instância para ignorar mensagens de grupos
-     "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
-   }
-   ```
+</div>
 
-2. **Obter o QR Code para uma instância específica**:
-   ```
-   GET /api/whatsapp/qr-image?clientId=cliente1
-   ```
+### 💎 Principais Vantagens
 
-3. **Enviar mensagens de uma instância específica**:
-   ```
-   POST /api/whatsapp/send/text
-   Content-Type: application/json
+- 💼 **Gestão Centralizada**: Gerenciamento de todos os clientes a partir de uma única API
+- 🔐 **Isolamento**: Cada cliente possui suas próprias credenciais e configurações
+- 📝 **Personalização**: Configuração individual de webhooks e preferências
 
-   {
-     "clientId": "cliente1",
-     "phoneNumber": "5511999999999",
-     "message": "Olá do cliente1!",
-     "simulateTyping": true,  // Opcional: simula digitação antes de enviar
-     "typingDurationMs": 2000 // Opcional: duração da simulação de digitação em ms (padrão: 1500)
-   }
-   ```
-
-4. **Listar todas as instâncias ativas**:
-   ```
-   GET /api/whatsapp/instances
-   ```
-
-5. **Deletar uma instância específica**:
-   ```
-   POST /api/whatsapp/instance/delete
-   Content-Type: application/json
-
-   {
-     "clientId": "cliente1"
-   }
-   ```
-
-### Observações sobre Múltiplas Instâncias:
+### 🔗 Estrutura de Armazenamento
 
 - Cada instância é identificada por um `clientId` único
-- Uma instância padrão ('default') é usada se nenhum `clientId` for especificado
-- Cada instância possui seu próprio diretório de sessão em `sessions/{clientId}`
-- Cada instância pode ter sua própria configuração de `ignoreGroups` e `webhookUrl`
+- Instância padrão (`default`) é usada quando nenhum `clientId` é especificado
+- Sessões são armazenadas em diretórios separados: `sessions/{clientId}/`
 
-## Webhooks
+### 🔄 Fluxo de Utilização
 
-A API suporta webhooks para notificar sistemas externos sobre mensagens recebidas no WhatsApp em tempo real.
+1. **Inicializar uma nova instância**:
 
-### Como configurar um webhook:
+```http
+POST /api/whatsapp/instance/init
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
 
-1. **Ao inicializar uma nova instância**:
-   ```
-   POST /api/whatsapp/instance/init
-   Content-Type: application/json
+{
+  "clientId": "empresa_xyz",                   // Identificador único do cliente
+  "ignoreGroups": true,                       // Opcional: ignorar mensagens de grupos
+  "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para notificações
+}
+```
 
-   {
-     "clientId": "cliente1",
-     "webhookUrl": "https://sua-url.com/webhook"
-   }
-   ```
+2. **Escanear o QR Code**:
 
-2. **Ou para uma instância existente**:
-   ```
-   POST /api/whatsapp/instance/config
-   Content-Type: application/json
+```http
+GET /api/whatsapp/qr-image?clientId=empresa_xyz
+Authorization: Bearer sua_chave_api_secreta
+```
 
-   {
-     "clientId": "cliente1",
-     "webhookUrl": "https://sua-url.com/webhook"
-   }
-   ```
+3. **Gerenciar a Instância Conectada**:
 
-3. **Para remover um webhook**:
-   ```
-   POST /api/whatsapp/instance/config
-   Content-Type: application/json
+- Enviar mensagens de texto: `/api/whatsapp/send/text` (incluindo `clientId` no corpo)
+- Enviar mídias: `/api/whatsapp/send/media` (incluindo `clientId` no corpo)
+- Verificar status: `/api/whatsapp/status?clientId=empresa_xyz`
+- Listar todas: `/api/whatsapp/instances`
+- Desconectar: `/api/whatsapp/logout` (incluindo `clientId` no corpo)
+- Deletar completamente: `/api/whatsapp/instance/delete` (incluindo `clientId` no corpo)
 
-   {
-     "clientId": "cliente1",
-     "webhookUrl": ""
-   }
-   ```
+## 🔔 Webhooks
 
-### Formato dos dados enviados para o webhook:
+A API suporta webhooks para notificar sistemas externos em tempo real sobre mensagens recebidas no WhatsApp.
+
+<div align="center">
+
+![Webhooks Integration](https://mermaid.ink/img/pako:eNptkLFuAjEQRH_F8tUUpKRJiSIkk0IBJUK05Dzec7DAZ-_aOyEi_ntsBQUpKO-NRjNv_QSOaVCP7mnf6fAaJwlMlxcX4-bcwOJhRPxgekY3sBu6Dq06MK3d27Bbl3EzFZu8lJKlZJYs-ZCm-NZ5XVFxxYpHbSzYcCGPzE76J6DRuVhTB2QVizM9FY41hAu1sTXOUeUDVDrHU0Tnr56-RXnB9KOKi_9QPrT0TnKElVxcSLfpZP8Fz8gOIbH7_gHj7VA8)
+
+</div>
+
+### 🔗 Configuração de Webhooks
+
+#### 1. Ao inicializar uma nova instância
+
+```http
+POST /api/whatsapp/instance/init
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente1",
+  "webhookUrl": "https://sua-url.com/webhook"
+}
+```
+
+#### 2. Para uma instância existente
+
+```http
+POST /api/whatsapp/instance/config
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente1",
+  "webhookUrl": "https://sua-url.com/webhook"
+}
+```
+
+#### 3. Para remover um webhook
+
+```http
+POST /api/whatsapp/instance/config
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente1",
+  "webhookUrl": ""
+}
+```
+
+### 📬 Formato dos Dados Enviados
 
 Quando uma mensagem é recebida, o seguinte JSON é enviado via POST para a URL configurada:
 
 ```json
 {
   "clientId": "cliente1",
-  "timestamp": "2025-05-05T17:54:06-03:00",
+  "messageType": "notify",
   "message": {
-    "id": "ABCDEF123456",
-    "from": "5511999999999@s.whatsapp.net",
-    "fromMe": false,
-    "timestamp": 1620123456,
-    "isGroup": false,
-    "type": "text",
-    "body": "Olá, como vai?"
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "ABCDEF123456"
+    },
+    "message": {
+      "conversation": "Olá, como vai?"
+    }
   },
-  "originalMessage": {
-    // Objeto completo original da mensagem do WhatsApp (opcional)
+  "timestamp": "2025-05-05T17:54:06-03:00"
+}
+```
+
+### ⚙️ Melhores Práticas para Webhooks
+
+| Prática | Descrição |
+|---------|------------|
+| ⏱️ **Resposta Rápida** | Seu endpoint deve responder em menos de 5 segundos |
+| 🔒 **Segurança** | Implemente validação de autenticidade no seu endpoint |
+| 🔄 **Resiliência** | Prepare-se para falhas (se o webhook falhar, a mensagem será processada mesmo assim) |
+| 👥 **Filtragem** | Use `ignoreGroups: true` para receber apenas mensagens individuais |
+| 📢 **Escopo** | Apenas mensagens recebidas são enviadas para o webhook |
+
+## 📝 Exemplos de Uso
+
+Esta seção contém exemplos práticos de como utilizar a API com JavaScript.
+
+<details>
+<summary><b>🔗 Gerenciamento de Instâncias</b></summary>
+
+### Inicializar instâncias para diferentes clientes
+
+```javascript
+// Função auxiliar para fazer requisições à API
+async function callHiveWPAPI(endpoint, method, data) {
+  const url = `http://localhost:3000/api/whatsapp/${endpoint}`;
+  const apiKey = 'sua_chave_api_secreta';
+  
+  try {
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: data ? JSON.stringify(data) : undefined
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erro: ${response.status} - ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Falha na operação ${endpoint}:`, error);
+    throw error;
   }
 }
+
+// Inicializar instância para o cliente A com configurações avançadas
+callHiveWPAPI('instance/init', 'POST', {
+  clientId: 'empresa_a',
+  ignoreGroups: true,
+  webhookUrl: "https://sua-url.com/webhook/empresa_a"
+})
+.then(data => console.log('Instância da Empresa A criada:', data))
+.catch(err => console.error('Erro:', err));
+
+// Inicializar instância para o cliente B (configuração mínima)
+callHiveWPAPI('instance/init', 'POST', {
+  clientId: 'empresa_b'
+})
+.then(data => console.log('Instância da Empresa B criada:', data))
+.catch(err => console.error('Erro:', err));
 ```
 
-### Estrutura simplificada das mensagens:
+### Listar todas as instâncias ativas
 
-O sistema oferece uma estrutura simplificada para facilitar o processamento das mensagens, com os seguintes tipos:
+```javascript
+callHiveWPAPI('instances', 'GET')
+  .then(data => {
+    console.log('Instâncias ativas:', data.instances.length);
+    data.instances.forEach(instance => {
+      console.log(`- ${instance.id}: ${instance.status}`);
+    });
+  })
+  .catch(err => console.error('Erro ao listar instâncias:', err));
+```
 
-1. **Mensagens de texto**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "text",
-  "body": "Conteúdo da mensagem de texto",
-  "quotedMessage": { // Opcional - presente apenas se for uma resposta a outra mensagem
-    "id": "MSG-ORIGINAL",
-    "participant": "55119999999@s.whatsapp.net"
+### Excluir uma instância
+
+```javascript
+callHiveWPAPI('instance/delete', 'POST', {
+  clientId: 'empresa_b'
+})
+.then(result => {
+  if (result.success) {
+    console.log('Instância removida com sucesso!');
+  } else {
+    console.warn('Falha ao remover instância:', result.error);
   }
-}
+})
+.catch(err => console.error('Erro:', err));
 ```
+</details>
 
-2. **Mensagens de áudio/PTT**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "audio", // ou "ptt" para mensagens de voz
-  "seconds": 10, // duração em segundos
-  "mimetype": "audio/ogg; codecs=opus",
-  "base64Audio": "base64-data..." // conteúdo do áudio em base64
-}
-```
+<details>
+<summary><b>💬 Envio de Mensagens</b></summary>
 
-3. **Mensagens com imagens**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "image",
-  "caption": "Legenda da imagem (se houver)",
-  "mimetype": "image/jpeg"
-}
-```
-
-4. **Mensagens com vídeos**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "video",
-  "caption": "Legenda do vídeo (se houver)",
-  "mimetype": "video/mp4"
-}
-```
-
-5. **Documentos**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "document",
-  "fileName": "documento.pdf",
-  "mimetype": "application/pdf"
-}
-```
-
-6. **Localização**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "location",
-  "latitude": -23.5505,
-  "longitude": -46.6333
-}
-```
-
-7. **Contatos**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "contact",
-  "name": "Nome do Contato",
-  "vcard": "vCard em formato de string"
-}
-```
-
-8. **Reações**:
-```json
-{
-  "id": "MSG123456",
-  "from": "5511999999999@s.whatsapp.net",
-  "type": "reaction",
-  "emoji": "👍",
-  "targetMessageId": "MSG-ALVO"
-}
-```
-
-### Notas sobre webhooks:
-
-- É recomendável que seu endpoint de webhook responda rapidamente (preferencialmente em menos de 5 segundos)
-- Se o webhook falhar, a mensagem continuará a ser processada normalmente
-- Apenas mensagens recebidas são enviadas para o webhook (mensagens enviadas pela API não são notificadas)
-- Você pode usar o campo `ignoreGroups` junto com `webhookUrl` para filtrar as notificações apenas para mensagens individuais
-
-## Exemplos de uso
-
-### Inicialização de múltiplas instâncias
+### Enviar mensagem de texto com simulação de digitação
 
 ```javascript
-// Inicializar instância para o cliente A
-fetch('http://localhost:3000/api/whatsapp/instance/init', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    ignoreGroups: true, // Opcional: configurar a instância para ignorar mensagens de grupos
-    webhookUrl: "https://sua-url.com/webhook" // Opcional: URL para receber notificações de mensagens
-  }),
+callHiveWPAPI('send/text', 'POST', {
+  clientId: 'empresa_a',
+  phoneNumber: '5511999999999',
+  message: 'Olá! Como posso ajudar você hoje?',
+  simulateTyping: true,
+  typingDurationMs: 2000
 })
-.then(response => response.json())
-.then(data => console.log(data));
-
-// Inicializar instância para o cliente B
-fetch('http://localhost:3000/api/whatsapp/instance/init', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteB'
-  }),
+.then(result => {
+  console.log('Mensagem enviada:', result);
 })
-.then(response => response.json())
-.then(data => console.log(data));
+.catch(err => console.error('Erro ao enviar mensagem:', err));
 ```
 
-### Deletar uma instância
+### Enviar imagem com legenda
 
 ```javascript
-fetch('http://localhost:3000/api/whatsapp/instance/delete', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA'
-  }),
+callHiveWPAPI('send/media', 'POST', {
+  clientId: 'empresa_a',
+  phoneNumber: '5511999999999',
+  mediaUrl: 'https://exemplo.com/imagens/produto.jpg',
+  caption: 'Confira nosso novo produto!'
 })
-.then(response => response.json())
-.then(data => console.log(data));
+.then(result => {
+  console.log('Imagem enviada:', result);
+})
+.catch(err => console.error('Erro ao enviar imagem:', err));
 ```
 
-### Enviar mensagem de texto de uma instância específica
+### Enviar documento PDF
 
 ```javascript
-fetch('http://localhost:3000/api/whatsapp/send/text', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    phoneNumber: '5511999999999',
-    message: 'Olá, esta é uma mensagem do cliente A!',
-    simulateTyping: true,  // Opcional: simula digitação antes de enviar
-    typingDurationMs: 2000 // Opcional: duração da simulação de digitação em ms (padrão: 1500)
-  }),
+callHiveWPAPI('send/media', 'POST', {
+  clientId: 'empresa_a',
+  phoneNumber: '5511999999999',
+  mediaUrl: 'https://exemplo.com/documentos/contrato.pdf',
+  filename: 'Contrato2025.pdf',
+  mimetype: 'application/pdf'
 })
-.then(response => response.json())
-.then(data => console.log(data));
+.then(result => {
+  console.log('Documento enviado:', result);
+})
+.catch(err => console.error('Erro ao enviar documento:', err));
 ```
 
-### Enviar qualquer tipo de mídia (imagem, documento, vídeo, áudio)
+### Enviar mensagem de voz
 
 ```javascript
-fetch('http://localhost:3000/api/whatsapp/send/media', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    phoneNumber: '5511999999999',
-    mediaUrl: 'https://exemplo.com/arquivo.jpg', // URL da mídia (imagem, documento, vídeo, áudio)
-    filename: 'imagem.jpg',  // Opcional, será detectado pela URL se omitido
-    mimetype: 'image/jpeg', // Opcional, será detectado pela extensão se omitido
-    caption: 'Legenda da imagem' // Opcional
-  }),
+callHiveWPAPI('send/audio', 'POST', {
+  clientId: 'empresa_a',
+  phoneNumber: '5511999999999',
+  audioUrl: 'https://exemplo.com/audios/mensagem.mp3'
 })
-.then(response => response.json())
-.then(data => console.log(data));
-```
-
-### Enviar mensagem de áudio (PTT/Voice Message)
-
-```javascript
-fetch('http://localhost:3000/api/whatsapp/send/audio', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    phoneNumber: '5511999999999',
-    audioUrl: 'https://exemplo.com/audio.mp3', // URL do áudio ou caminho local
-    mimetype: 'audio/mpeg' // Opcional, será detectado pela extensão se omitido
-  }),
+.then(result => {
+  console.log('Áudio enviado:', result);
 })
-.then(response => response.json())
-.then(data => console.log(data));
+.catch(err => console.error('Erro ao enviar áudio:', err));
 ```
+</details>
+
+<details>
+<summary><b>🔍 Verificações e Status</b></summary>
 
 ### Verificar se um número existe no WhatsApp
 
 ```javascript
-fetch('http://localhost:3000/api/whatsapp/check-number', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    phoneNumber: '5511999999999'
-  }),
+callHiveWPAPI('check-number', 'POST', {
+  clientId: 'empresa_a',
+  phoneNumber: '5511999999999'
 })
-.then(response => response.json())
-.then(data => {
-  if (data.success && data.exists) {
-    console.log('Número existe no WhatsApp e pode receber mensagens');
+.then(result => {
+  if (result.success && result.exists) {
+    console.log('O número está registrado no WhatsApp!');
+  } else if (result.success && !result.exists) {
+    console.log('O número NÃO está registrado no WhatsApp.');
   } else {
-    console.log('Número não está registrado no WhatsApp');
+    console.warn('Erro na verificação:', result.error);
   }
-});
+})
+.catch(err => console.error('Erro:', err));
 ```
 
-### Configurar uma instância para ignorar mensagens de grupos
+### Verificar status da conexão
 
 ```javascript
-fetch('http://localhost:3000/api/whatsapp/instance/config', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    clientId: 'clienteA',
-    ignoreGroups: true // true para ignorar mensagens de grupos, false para processá-las
-  }),
-})
-.then(response => response.json())
-.then(data => console.log(data));
+callHiveWPAPI(`status?clientId=empresa_a`, 'GET')
+  .then(result => {
+    console.log(`Status da conexão: ${result.status}`);
+    console.log(`Conectado: ${result.connected ? 'Sim' : 'Não'}`);
+  })
+  .catch(err => console.error('Erro ao verificar status:', err));
 ```
+</details>
 
-## Notas importantes
+<details>
+<summary><b>🔄 Fluxo Completo de Inicialização</b></summary>
+
+```javascript
+// Função para obter a URL da imagem do QR Code
+function getQRCodeUrl(clientId) {
+  const apiKey = 'sua_chave_api_secreta';
+  return `http://localhost:3000/api/whatsapp/qr-image?clientId=${clientId}&token=${apiKey}`;
+}
+
+// Inicializar nova instância
+callHiveWPAPI('instance/init', 'POST', {
+  clientId: 'novo_cliente',
+  webhookUrl: 'https://seu-servidor.com/webhook/novo_cliente'
+})
+.then(result => {
+  if (result.success) {
+    console.log('Instância criada com sucesso!');
+    
+    // Exibir o QR Code para o usuário
+    const qrCodeUrl = getQRCodeUrl('novo_cliente');
+    console.log('Escaneie o QR Code:', qrCodeUrl);
+    
+    // Você pode exibir em uma página HTML:
+    // document.getElementById('qrcode').src = qrCodeUrl;
+    
+    // Verificar status periodicamente
+    const checkStatusInterval = setInterval(async () => {
+      try {
+        const status = await callHiveWPAPI(`status?clientId=novo_cliente`, 'GET');
+        console.log(`Status atual: ${status.status}`);
+        
+        if (status.connected) {
+          console.log('Conectado com sucesso! Pronto para enviar mensagens.');
+          clearInterval(checkStatusInterval);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+      }
+    }, 5000); // Verificar a cada 5 segundos
+  } else {
+    console.error('Falha ao criar instância:', result.error);
+  }
+})
+.catch(err => console.error('Erro:', err));
+```
+</details>
+
+---
+
+<div align="center">
+
+### 💪 Integração Rápida
+
+A HiveWP API torna a integração do WhatsApp com seus sistemas rápida e confiável!  
+Visite [github.com/jpcb2020/HiveWP-API](https://github.com/jpcb2020/HiveWP-API) para contribuir ou reportar issues.
+
+</div>
+
+## Notas Importantes
 
 - A pasta `sessions` contém dados de autenticação e não deve ser commitada no Git (já está no .gitignore)
 - Cada instância possui seu próprio subdiretório dentro da pasta `sessions/{clientId}`
