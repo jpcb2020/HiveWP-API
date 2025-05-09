@@ -1,6 +1,6 @@
 // App State
 const state = {
-    apiUrl: 'http://localhost:3000',
+    apiUrl: localStorage.getItem('apiUrl') || 'http://localhost:3000',
     instances: [],
     activePage: 'dashboard',
     searchTerm: ''
@@ -455,6 +455,9 @@ function saveSettings() {
     
     // Update state
     state.apiUrl = apiUrl;
+    
+    // Save to localStorage
+    localStorage.setItem('apiUrl', apiUrl);
     
     showAlert('Success', 'Settings saved successfully', 'success');
     addActivity('Updated API settings');
