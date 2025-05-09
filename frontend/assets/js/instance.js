@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(err => {
         console.error('Erro ao verificar autenticação:', err);
-        showAlert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão.');
+        showAlert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão.', 'error');
     });
 });
 
@@ -64,7 +64,7 @@ function getAuthHeader() {
 // Initialize page
 async function initPage() {
     if (!clientId) {
-        showAlert('Error', 'No instance ID provided. Redirecting to dashboard...');
+        showAlert('Error', 'No instance ID provided. Redirecting to dashboard...', 'error');
         setTimeout(() => {
             window.location.href = '/';
         }, 2000);
@@ -187,7 +187,7 @@ async function loadInstanceData() {
         }
     } catch (error) {
         console.error('Error loading instance data:', error);
-        showAlert('Connection Error', 'Failed to connect to the API: ' + error.message);
+        showAlert('Connection Error', 'Failed to connect to the API: ' + error.message, 'error');
     }
 }
 
@@ -329,7 +329,13 @@ async function checkInstanceStatus() {
 
 // Reconnect instance
 async function reconnectInstance() {
-    if (!confirm(`Are you sure you want to reconnect the instance "${clientId}"?`)) {
+    // Usar nossa função de confirmação personalizada em vez de confirm() nativo
+    const confirmed = await showConfirm(
+        `Tem certeza que deseja reconectar a instância "${clientId}"?`,
+        'Confirmar Reconexão'
+    );
+    
+    if (!confirmed) {
         return;
     }
     
@@ -346,7 +352,7 @@ async function reconnectInstance() {
         const data = await response.json();
         
         if (data.success) {
-            showAlert('Success', 'Instance reconnection initiated. QR code will be generated shortly.');
+            showAlert('Success', 'Instance reconnection initiated. QR code will be generated shortly.', 'success');
             addLogEntry('Reconnection initiated');
             
             // Show QR container
@@ -361,17 +367,23 @@ async function reconnectInstance() {
                 state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000);
             }
         } else {
-            showAlert('Error', data.error || 'Failed to reconnect instance');
+            showAlert('Error', data.error || 'Failed to reconnect instance', 'error');
         }
     } catch (error) {
         console.error('Error reconnecting instance:', error);
-        showAlert('Connection Error', 'Failed to connect to the API');
+        showAlert('Connection Error', 'Failed to connect to the API', 'error');
     }
 }
 
 // Logout instance
 async function logoutInstance() {
-    if (!confirm(`Are you sure you want to logout the instance "${clientId}"? This will disconnect it from WhatsApp.`)) {
+    // Usar nossa função de confirmação personalizada em vez de confirm() nativo
+    const confirmed = await showConfirm(
+        `Tem certeza que deseja desconectar a instância "${clientId}"? Isso fará com que ela seja desconectada do WhatsApp.`,
+        'Confirmar Logout'
+    );
+    
+    if (!confirmed) {
         return;
     }
     
@@ -385,7 +397,7 @@ async function logoutInstance() {
         const data = await response.json();
         
         if (data.success) {
-            showAlert('Success', 'Instance logged out successfully');
+            showAlert('Success', 'Instance logged out successfully', 'success');
             addLogEntry('Logged out from WhatsApp');
             
             // Update status
@@ -399,17 +411,29 @@ async function logoutInstance() {
         }
     } catch (error) {
         console.error('Error logging out instance:', error);
-        showAlert('Connection Error', 'Failed to connect to the API');
+        showAlert('Connection Error', 'Failed to connect to the API', 'error');
     }
 }
 
 // Delete instance
 async function deleteInstance() {
-    if (!confirm(`Are you sure you want to DELETE the instance "${clientId}"? This action cannot be undone.`)) {
+    // Primeira confirmação
+    const firstConfirmed = await showConfirm(
+        `Tem certeza que deseja EXCLUIR a instância "${clientId}"? Esta ação não pode ser desfeita.`,
+        'Confirmar Exclusão'
+    );
+    
+    if (!firstConfirmed) {
         return;
     }
     
-    if (!confirm(`FINAL WARNING: This will permanently delete the instance "${clientId}" and all its data. Continue?`)) {
+    // Segunda confirmação com aviso mais severo
+    const finalConfirmed = await showConfirm(
+        `AVISO FINAL: Isso excluirá permanentemente a instância "${clientId}" e todos os seus dados. Continuar?`,
+        'Confirmação Final',
+    );
+    
+    if (!finalConfirmed) {
         return;
     }
     
@@ -423,18 +447,18 @@ async function deleteInstance() {
         const data = await response.json();
         
         if (data.success) {
-            showAlert('Success', 'Instance deleted successfully. Redirecting to dashboard...');
+            showAlert('Success', 'Instance deleted successfully. Redirecting to dashboard...', 'success');
             
             // Redirect to dashboard after a delay
             setTimeout(() => {
                 window.location.href = '/';
             }, 2000);
         } else {
-            showAlert('Error', data.error || 'Failed to delete instance');
+            showAlert('Error', data.error || 'Failed to delete instance', 'error');
         }
     } catch (error) {
         console.error('Error deleting instance:', error);
-        showAlert('Connection Error', 'Failed to connect to the API');
+        showAlert('Connection Error', 'Failed to connect to the API', 'error');
     }
 }
 
@@ -529,10 +553,10 @@ async function saveInstanceSettings() {
             }
             
             // Show success message
-            showAlert('Success', 'Instance settings saved successfully');
+            showAlert('Success', 'Instance settings saved successfully', 'success');
             addLogEntry('Settings updated');
         } else {
-            showAlert('Error', data.error || 'Failed to save settings');
+            showAlert('Error', data.error || 'Failed to save settings', 'error');
         }
     } catch (error) {
         console.error('Error saving settings:', error);
@@ -541,20 +565,92 @@ async function saveInstanceSettings() {
         elements.saveSettings.disabled = false;
         elements.saveSettings.innerHTML = '<i class="fas fa-save"></i> Save Settings';
         
-        showAlert('Connection Error', 'Failed to connect to the API');
+        showAlert('Connection Error', 'Failed to connect to the API', 'error');
     }
 }
 
 // Show alert modal
-function showAlert(title, message) {
+function showAlert(title, message, type = 'info') {
+    const iconSymbol = document.getElementById('alert-icon-symbol');
+    
+    // Limpar classes de ícones anteriores
+    iconSymbol.className = '';
+    
+    // Definir o ícone e a cor de acordo com o tipo de alerta
+    switch(type) {
+        case 'success':
+            iconSymbol.className = 'fas fa-check-circle';
+            break;
+        case 'warning':
+            iconSymbol.className = 'fas fa-exclamation-triangle';
+            break;
+        case 'error':
+            iconSymbol.className = 'fas fa-times-circle';
+            break;
+        default: // 'info' ou qualquer outro tipo
+            iconSymbol.className = 'fas fa-info-circle';
+            break;
+    }
+    
+    // Definir o título e a mensagem
     elements.alertTitle.textContent = title;
     elements.alertMessage.textContent = message;
+    
+    // Exibir o modal
     elements.alertModal.classList.add('active');
 }
 
 // Close modal
 function closeModal(modal) {
     modal.classList.remove('active');
+}
+
+// Modal de Confirmação Personalizado
+function showConfirm(message, title = 'Confirmação', onConfirm = null, onCancel = null) {
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+    const headerTitle = document.getElementById('confirm-header-title');
+    
+    // Definir título e mensagem
+    confirmTitle.textContent = title;
+    headerTitle.textContent = title;
+    confirmMessage.textContent = message;
+    
+    // Mostrar o modal
+    confirmModal.classList.add('active');
+    
+    // Remover listeners anteriores para evitar duplicação
+    const closeButtons = confirmModal.querySelectorAll('.close-confirm');
+    closeButtons.forEach(btn => {
+        const clonedBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(clonedBtn, btn);
+    });
+    
+    // Adicionar event listeners para os botões
+    confirmModal.querySelectorAll('.close-confirm').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const result = this.getAttribute('data-result') === 'true';
+            closeModal(confirmModal);
+            
+            // Executar o callback apropriado
+            if (result && typeof onConfirm === 'function') {
+                onConfirm();
+            } else if (!result && typeof onCancel === 'function') {
+                onCancel();
+            }
+        }, { once: true }); // O listener só é executado uma vez
+    });
+    
+    // Retorna uma Promise para permitir uso com await
+    return new Promise(resolve => {
+        confirmModal.querySelectorAll('.close-confirm').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const result = this.getAttribute('data-result') === 'true';
+                resolve(result);
+            }, { once: true });
+        });
+    });
 }
 
 // Clean up on page unload

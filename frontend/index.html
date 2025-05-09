@@ -64,7 +64,7 @@
             <header class="content-header">
                 <h2 id="page-title">Dashboard</h2>
                 <div class="user-actions">
-                    <button id="add-new-btn" class="btn primary"><i class="fas fa-plus"></i> Add New</button>
+                    <button id="add-new-btn" class="btn primary" style="display: none;"><i class="fas fa-plus"></i> Add New</button>
                     <button id="logout-btn" class="btn secondary" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </div>
             </header>
@@ -107,6 +107,13 @@
             <section id="instances-section" class="content-section">
                 <div class="section-header">
                     <h3>Manage WhatsApp Instances</h3>
+                    <div class="search-container">
+                        <div class="search-box">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" id="instance-search" placeholder="Buscar instância..." class="search-input">
+                            <button id="clear-search" class="clear-search-btn" style="display: none;"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="instance-list" id="instance-list">
                     <p class="empty-state">No instances added yet</p>
@@ -160,15 +167,50 @@
         </div>
     </div>
 
-    <div id="alert-modal" class="modal">
+    <div id="alert-modal" class="modal alert-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="alert-title">Alert</h3>
-                <button class="close-modal">&times;</button>
+                <h3 class="modal-title">Notificação</h3>
+                <button class="modal-close close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="alert-message"></p>
+                <div class="alert-container">
+                    <div class="alert-icon">
+                        <i id="alert-icon-symbol" class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h3 id="alert-title">Alert</h3>
+                        <p id="alert-message"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
                 <button class="btn primary close-modal">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmação -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirm-header-title">Confirmação</h3>
+                <button class="modal-close close-confirm" data-result="false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert-container">
+                    <div class="alert-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h3 id="confirm-title">Confirmação</h3>
+                        <p id="confirm-message"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary close-confirm" data-result="false">Cancelar</button>
+                <button class="btn primary close-confirm" data-result="true">Confirmar</button>
             </div>
         </div>
     </div>

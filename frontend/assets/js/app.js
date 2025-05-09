@@ -2,7 +2,8 @@
 const state = {
     apiUrl: 'http://localhost:3000',
     instances: [],
-    activePage: 'dashboard'
+    activePage: 'dashboard',
+    searchTerm: ''
 };
 
 // DOM Elements
@@ -20,6 +21,10 @@ const elements = {
     activityList: document.getElementById('activity-list'),
     
     instanceList: document.getElementById('instance-list'),
+    
+    // Search elements
+    instanceSearch: document.getElementById('instance-search'),
+    clearSearch: document.getElementById('clear-search'),
     
     // Modals
     addInstanceModal: document.getElementById('add-instance-modal'),
@@ -73,17 +78,19 @@ function setupEventListeners() {
         });
     });
     
-    // Add New button
-    elements.addNewBtn.addEventListener('click', () => {
-        if (state.activePage === 'instances') {
-            showModal(elements.addInstanceModal);
-        }
-    });
+    // Add New button (se existir)
+    if (elements.addNewBtn) {
+        elements.addNewBtn.addEventListener('click', () => {
+            if (state.activePage === 'instances') {
+                showModal(elements.addInstanceModal);
+            }
+        });
+    }
     
     // Close modals
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            closeModal(e.target.closest('.modal'));
+            hideModal(e.target.closest('.modal'));
         });
     });
     
@@ -92,6 +99,12 @@ function setupEventListeners() {
     
     // Settings save
     elements.saveSettingsBtn.addEventListener('click', saveSettings);
+    
+    // Search functionality
+    if (elements.instanceSearch) {
+        elements.instanceSearch.addEventListener('input', handleSearch);
+        elements.clearSearch.addEventListener('click', clearSearch);
+    }
 }
 
 // Navigation function
@@ -118,12 +131,14 @@ function navigateTo(page) {
         }
     });
     
-    // Update add button visibility and text
-    if (page === 'instances') {
-        elements.addNewBtn.style.display = 'block';
-        elements.addNewBtn.innerHTML = `<i class="fas fa-plus"></i> Add New Instance`;
-    } else {
-        elements.addNewBtn.style.display = 'none';
+    // Update add button visibility and text (se o botão existir)
+    if (elements.addNewBtn) {
+        if (page === 'instances') {
+            elements.addNewBtn.style.display = 'inline-flex';
+            elements.addNewBtn.innerHTML = `<i class="fas fa-plus"></i> Add New Instance`;
+        } else {
+            elements.addNewBtn.style.display = 'none';
+        }
     }
     
     // Update state
@@ -308,7 +323,13 @@ function showQRCode(clientId, qrCodeData) {
 
 // Delete WhatsApp instance
 async function deleteInstance(clientId) {
-    if (!confirm(`Are you sure you want to delete the instance "${clientId}"?`)) {
+    // Usar nossa função de confirmação personalizada em vez de confirm() nativo
+    const confirmed = await showConfirm(
+        `Tem certeza que deseja excluir a instância "${clientId}"?`, 
+        'Confirmar Exclusão'
+    );
+    
+    if (!confirmed) {
         return;
     }
     
@@ -337,7 +358,13 @@ async function deleteInstance(clientId) {
 
 // Logout WhatsApp instance
 async function logoutInstance(clientId) {
-    if (!confirm(`Are you sure you want to logout the instance "${clientId}"?`)) {
+    // Usar nossa função de confirmação personalizada em vez de confirm() nativo
+    const confirmed = await showConfirm(
+        `Tem certeza que deseja desconectar a instância "${clientId}"?`, 
+        'Confirmar Logout'
+    );
+    
+    if (!confirmed) {
         return;
     }
     
@@ -402,12 +429,17 @@ async function handleAddInstance(e) {
     
     // Reset form and close modal
     idInput.value = '';
-    closeModal(elements.addInstanceModal);
+    hideModal(elements.addInstanceModal);
     
     addActivity(`Added new instance: ${clientId}`);
     
-    // Ask to initialize
-    if (confirm(`Would you like to initialize the WhatsApp instance "${clientId}" now?`)) {
+    // Ask to initialize usando nossa confirmação personalizada
+    const shouldInitialize = await showConfirm(
+        `Gostaria de inicializar a instância do WhatsApp "${clientId}" agora?`,
+        'Inicializar Instância'
+    );
+    
+    if (shouldInitialize) {
         await initializeInstance(clientId);
     }
 }
@@ -431,6 +463,31 @@ function saveSettings() {
     loadData();
 }
 
+// Funções de busca
+function handleSearch(e) {
+    state.searchTerm = e.target.value.trim().toLowerCase();
+    
+    // Mostrar ou esconder o botão de limpar
+    if (state.searchTerm) {
+        elements.clearSearch.style.display = 'block';
+    } else {
+        elements.clearSearch.style.display = 'none';
+    }
+    
+    // Atualizar a lista com os resultados filtrados
+    renderInstances();
+}
+
+function clearSearch() {
+    // Limpar o campo de busca e o termo de busca no estado
+    elements.instanceSearch.value = '';
+    state.searchTerm = '';
+    elements.clearSearch.style.display = 'none';
+    
+    // Atualizar a lista com todas as instâncias
+    renderInstances();
+}
+
 // Render instances list
 function renderInstances() {
     const container = elements.instanceList;
@@ -440,9 +497,21 @@ function renderInstances() {
         return;
     }
     
+    // Filtrar instâncias pelo termo de busca
+    const filteredInstances = state.searchTerm
+        ? state.instances.filter(instance => 
+            instance.clientId.toLowerCase().includes(state.searchTerm))
+        : state.instances;
+    
+    // Mostrar mensagem quando não há resultados para o termo buscado
+    if (filteredInstances.length === 0) {
+        container.innerHTML = `<p class="empty-state">Nenhuma instância encontrada para "${state.searchTerm}"</p>`;
+        return;
+    }
+    
     container.innerHTML = '';
     
-    state.instances.forEach(instance => {
+    filteredInstances.forEach(instance => {
         // Verificar se instance.clientId existe e é uma string válida
         if (!instance.clientId || typeof instance.clientId !== 'string') {
             console.error('Invalid instance:', instance);
@@ -540,22 +609,89 @@ function addActivity(message) {
     }
 }
 
-// Show modal
+// Show/hide modal functions
 function showModal(modal) {
-    modal.classList.add('active');
+    modal.style.display = 'flex';
+    // Use setTimeout para garantir que a transição funcione
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
 }
 
-// Close modal
-function closeModal(modal) {
-    modal.classList.remove('active');
+function hideModal(modal) {
+    modal.classList.remove('show');
+    // Espere a animação terminar antes de ocultar completamente
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300); // Corresponde à duração da transição CSS
+}
+
+// Modal de Confirmação Personalizado
+function showConfirm(message, title = 'Confirmação', onConfirm = null, onCancel = null) {
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+    const headerTitle = document.getElementById('confirm-header-title');
+    
+    // Definir título e mensagem
+    confirmTitle.textContent = title;
+    headerTitle.textContent = title;
+    confirmMessage.textContent = message;
+    
+    // Remover eventos antigos
+    const closeButtons = confirmModal.querySelectorAll('.close-confirm');
+    closeButtons.forEach(btn => {
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+    });
+    
+    // Mostrar modal
+    showModal(confirmModal);
+    
+    // Retornar Promise
+    return new Promise(resolve => {
+        confirmModal.querySelectorAll('.close-confirm').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const result = this.getAttribute('data-result') === 'true';
+                hideModal(confirmModal);
+                
+                if (result && typeof onConfirm === 'function') {
+                    onConfirm();
+                } else if (!result && typeof onCancel === 'function') {
+                    onCancel();
+                }
+                
+                resolve(result);
+            });
+        });
+    });
 }
 
 // Show alert
 function showAlert(title, message, type = 'error') {
+    // Configurar o ícone baseado no tipo
+    const iconSymbol = document.getElementById('alert-icon-symbol');
+    
+    switch(type) {
+        case 'success':
+            iconSymbol.className = 'fas fa-check-circle';
+            break;
+        case 'warning':
+            iconSymbol.className = 'fas fa-exclamation-triangle';
+            break;
+        case 'error':
+            iconSymbol.className = 'fas fa-times-circle';
+            break;
+        default:
+            iconSymbol.className = 'fas fa-info-circle';
+            break;
+    }
+    
+    // Definir título e mensagem
     elements.alertTitle.textContent = title;
     elements.alertMessage.textContent = message;
-    elements.alertTitle.className = type;
     
+    // Mostrar modal
     showModal(elements.alertModal);
 }
 

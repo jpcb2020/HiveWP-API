@@ -147,12 +147,46 @@
     <div id="alert-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="alert-title">Alert</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="alert-message"></p>
-                <button class="btn primary close-modal">OK</button>
+                <div class="alert-container">
+                    <div class="alert-icon">
+                        <i id="alert-icon-symbol" class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h3 id="alert-title">Alert</h3>
+                        <p id="alert-message"></p>
+                    </div>
+                </div>
+                <div class="alert-actions">
+                    <button class="btn primary close-modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmação -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirm-header-title">Inicializar Instância</h3>
+                <button class="close-confirm close-btn" data-result="false">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert-container">
+                    <div class="alert-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="alert-content">
+                        <h3 id="confirm-title">Confirmação</h3>
+                        <p id="confirm-message"></p>
+                    </div>
+                </div>
+                <div class="alert-actions">
+                    <button class="btn secondary close-confirm" data-result="false">Cancelar</button>
+                    <button class="btn primary close-confirm" data-result="true">OK</button>
+                </div>
             </div>
         </div>
     </div>
