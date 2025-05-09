@@ -436,14 +436,111 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         
         console.log(`[${clientId}] Nova mensagem recebida:`, JSON.stringify(message, null, 2));
         
+        // Simplificar estrutura da mensagem para o webhook
+        const simplifiedMessage = {
+          id: message.key.id,
+          from: message.key.remoteJid,
+          fromMe: message.key.fromMe,
+          timestamp: message.messageTimestamp,
+          isGroup: isGroupMessage,
+          type: 'unknown'
+        };
+        
+        // Extrair conteúdo da mensagem
+        if (message.message?.conversation) {
+          // Texto simples
+          simplifiedMessage.type = 'text';
+          simplifiedMessage.body = message.message.conversation;
+        } 
+        else if (message.message?.extendedTextMessage) {
+          // Texto com formatação
+          simplifiedMessage.type = 'text';
+          simplifiedMessage.body = message.message.extendedTextMessage.text;
+          
+          // Verificar se há uma citação (mensagem respondida)
+          if (message.message.extendedTextMessage.contextInfo?.quotedMessage) {
+            simplifiedMessage.quotedMessage = {
+              id: message.message.extendedTextMessage.contextInfo.stanzaId,
+              participant: message.message.extendedTextMessage.contextInfo.participant
+            };
+          }
+        }
+        else if (message.message?.imageMessage) {
+          // Imagem
+          simplifiedMessage.type = 'image';
+          simplifiedMessage.caption = message.message.imageMessage.caption || '';
+          simplifiedMessage.mimetype = message.message.imageMessage.mimetype;
+        }
+        else if (message.message?.videoMessage) {
+          // Vídeo
+          simplifiedMessage.type = 'video';
+          simplifiedMessage.caption = message.message.videoMessage.caption || '';
+          simplifiedMessage.mimetype = message.message.videoMessage.mimetype;
+        }
+        else if (message.message?.documentMessage) {
+          // Documento
+          simplifiedMessage.type = 'document';
+          simplifiedMessage.fileName = message.message.documentMessage.fileName || '';
+          simplifiedMessage.mimetype = message.message.documentMessage.mimetype;
+        }
+        else if (message.message?.audioMessage || message.message?.pttMessage) {
+          // Áudio ou PTT (mensagem de voz)
+          const audioMessage = message.message.audioMessage || message.message.pttMessage;
+          simplifiedMessage.type = audioMessage.ptt ? 'ptt' : 'audio';
+          simplifiedMessage.seconds = audioMessage.seconds || 0;
+          simplifiedMessage.mimetype = audioMessage.mimetype;
+          
+          try {
+            console.log(`[${clientId}] Mensagem de áudio detectada, extraindo conteúdo...`);
+            
+            // Baixar o conteúdo do áudio
+            const stream = await downloadContentFromMessage(audioMessage, 'audio');
+            let buffer = Buffer.from([]);
+            
+            // Acumular chunks no buffer
+            for await (const chunk of stream) {
+              buffer = Buffer.concat([buffer, chunk]);
+            }
+            
+            // Converter para base64
+            const base64Audio = buffer.toString('base64');
+            
+            // Adicionar base64 à mensagem simplificada
+            simplifiedMessage.base64Audio = base64Audio;
+            
+            console.log(`[${clientId}] Áudio extraído e convertido para base64 com sucesso`);
+          } catch (audioError) {
+            console.error(`[${clientId}] Erro ao extrair áudio:`, audioError);
+            simplifiedMessage.error = 'Falha ao extrair áudio: ' + audioError.message;
+          }
+        }
+        else if (message.message?.locationMessage) {
+          // Localização
+          simplifiedMessage.type = 'location';
+          simplifiedMessage.latitude = message.message.locationMessage.degreesLatitude;
+          simplifiedMessage.longitude = message.message.locationMessage.degreesLongitude;
+        }
+        else if (message.message?.contactMessage) {
+          // Contato
+          simplifiedMessage.type = 'contact';
+          simplifiedMessage.name = message.message.contactMessage.displayName;
+          simplifiedMessage.vcard = message.message.contactMessage.vcard;
+        }
+        else if (message.message?.reactionMessage) {
+          // Reação
+          simplifiedMessage.type = 'reaction';
+          simplifiedMessage.emoji = message.message.reactionMessage.text;
+          simplifiedMessage.targetMessageId = message.message.reactionMessage.key.id;
+        }
+        
         // Enviar para webhook, se configurado
         if (instances[clientId].webhookUrl) {
           try {
             const webhookData = {
               clientId,
-              messageType: m.type,
-              message: message,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              message: simplifiedMessage,
+              originalMessage: message // Opcional: mantém a mensagem original para casos específicos
             };
             
             console.log(`[${clientId}] Enviando mensagem para webhook: ${instances[clientId].webhookUrl}`);
