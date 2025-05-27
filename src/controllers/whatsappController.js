@@ -24,7 +24,7 @@ const getInstances = async (req, res) => {
  */
 const initInstance = async (req, res) => {
   try {
-    const { clientId, ignoreGroups, webhookUrl } = req.body;
+    const { clientId, ignoreGroups, webhookUrl, proxyUrl } = req.body;
     
     if (!clientId) {
       return res.status(400).json({
@@ -41,6 +41,9 @@ const initInstance = async (req, res) => {
     if (webhookUrl !== undefined) {
       options.webhookUrl = webhookUrl;
     }
+    if (proxyUrl !== undefined) {
+      options.proxyUrl = proxyUrl;
+    }
     
     await whatsappService.initializeWhatsApp(clientId, options);
     
@@ -49,7 +52,8 @@ const initInstance = async (req, res) => {
       message: `Instância para cliente ${clientId} inicializada com sucesso`,
       config: {
         ignoreGroups: ignoreGroups !== undefined ? !!ignoreGroups : undefined,
-        webhookUrl: webhookUrl
+        webhookUrl: webhookUrl,
+        proxyUrl: proxyUrl
       }
     });
   } catch (error) {
@@ -319,10 +323,10 @@ const checkNumberExists = async (req, res) => {
  */
 const updateConfig = async (req, res) => {
   try {
-    const { clientId = 'default', ignoreGroups, webhookUrl } = req.body;
+    const { clientId = 'default', ignoreGroups, webhookUrl, proxyUrl } = req.body;
     
     // Validar parâmetros
-    if (ignoreGroups === undefined && webhookUrl === undefined) {
+    if (ignoreGroups === undefined && webhookUrl === undefined && proxyUrl === undefined) {
       return res.status(400).json({
         success: false,
         error: 'Pelo menos uma configuração deve ser fornecida'
@@ -338,6 +342,10 @@ const updateConfig = async (req, res) => {
     
     if (webhookUrl !== undefined) {
       configOptions.webhookUrl = webhookUrl;
+    }
+    
+    if (proxyUrl !== undefined) {
+      configOptions.proxyUrl = proxyUrl;
     }
     
     const result = whatsappService.updateInstanceConfig(clientId, configOptions);

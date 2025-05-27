@@ -20,6 +20,7 @@
 - [Endpoints](#endpoints-da-api)
 - [Sistema de Múltiplas Instâncias](#usando-o-sistema-de-múltiplas-instâncias)
 - [Webhooks](#webhooks)
+- [Suporte a Proxy](#suporte-a-proxy)
 - [Exemplos](#exemplos-de-uso)
 
 ---
@@ -39,6 +40,7 @@ HiveWP API é uma interface RESTful moderna e de alta performance para integrar 
 | 👥 **Multi-instância** | Gerencie múltiplos clientes simultaneamente |
 | 🔍 **Filtros** | Opção para ignorar mensagens de grupos |
 | 🔔 **Webhooks** | Notificações em tempo real para mensagens recebidas |
+| 🌐 **Proxy** | Suporte completo a proxies SOCKS e HTTP/HTTPS |
 
 ## 📋 Requisitos
 
@@ -103,7 +105,8 @@ Authorization: Bearer sua_chave_api_secreta
 {
   "clientId": "cliente1",
   "ignoreGroups": true,         // Opcional: ignorar mensagens de grupos
-  "webhookUrl": "https://sua-url.com/webhook"  // Opcional: receber notificações
+  "webhookUrl": "https://sua-url.com/webhook",  // Opcional: receber notificações
+  "proxyUrl": "socks5://user:pass@proxy.example.com:1080"  // Opcional: usar proxy
 }
 ```
 
@@ -136,7 +139,8 @@ Content-Type: application/json
 {
   "clientId": "identificador_do_cliente",      // Obrigatório
   "ignoreGroups": true,                      // Opcional
-  "webhookUrl": "https://sua-url.com/webhook" // Opcional
+  "webhookUrl": "https://sua-url.com/webhook", // Opcional
+  "proxyUrl": "socks5://user:pass@proxy.example.com:1080"  // Opcional
 }
 ```
 
@@ -158,7 +162,8 @@ Content-Type: application/json
 {
   "clientId": "identificador_do_cliente",
   "ignoreGroups": true,                      // Opcional
-  "webhookUrl": "https://sua-url.com/webhook" // Opcional
+  "webhookUrl": "https://sua-url.com/webhook", // Opcional
+  "proxyUrl": "socks5://user:pass@proxy.example.com:1080"  // Opcional
 }
 ```
 
@@ -348,7 +353,8 @@ Content-Type: application/json
 {
   "clientId": "empresa_xyz",                   // Identificador único do cliente
   "ignoreGroups": true,                       // Opcional: ignorar mensagens de grupos
-  "webhookUrl": "https://sua-url.com/webhook" // Opcional: URL para notificações
+  "webhookUrl": "https://sua-url.com/webhook", // Opcional: URL para notificações
+  "proxyUrl": "socks5://user:pass@proxy.example.com:1080"  // Opcional: usar proxy
 }
 ```
 
@@ -587,6 +593,140 @@ Este processamento é feito de forma eficiente, mantendo a alta performance da A
 | 👥 **Filtragem** | Use `ignoreGroups: true` para receber apenas mensagens individuais |
 | 📢 **Escopo** | Apenas mensagens recebidas são enviadas para o webhook |
 
+## 🌐 Suporte a Proxy
+
+A HiveWP API oferece suporte completo a proxies para permitir conexões através de servidores intermediários. Isso é útil para contornar restrições de rede, melhorar a privacidade ou conectar através de redes corporativas.
+
+### 🔧 Tipos de Proxy Suportados
+
+| Tipo | Protocolo | Exemplo |
+|------|-----------|---------|
+| **SOCKS4** | `socks4://` | `socks4://proxy.example.com:1080` |
+| **SOCKS5** | `socks5://` | `socks5://user:pass@proxy.example.com:1080` |
+| **HTTP** | `http://` | `http://proxy.example.com:8080` |
+| **HTTPS** | `https://` | `https://user:pass@proxy.example.com:8080` |
+
+### 🚀 Configuração de Proxy
+
+#### 1. Ao criar uma nova instância
+
+```http
+POST /api/whatsapp/instance/init
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente_com_proxy",
+  "proxyUrl": "socks5://usuario:senha@proxy.example.com:1080"
+}
+```
+
+#### 2. Para uma instância existente
+
+```http
+POST /api/whatsapp/instance/config
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente_existente",
+  "proxyUrl": "http://proxy.example.com:8080"
+}
+```
+
+#### 3. Para remover proxy de uma instância
+
+```http
+POST /api/whatsapp/instance/config
+Authorization: Bearer sua_chave_api_secreta
+Content-Type: application/json
+
+{
+  "clientId": "cliente_existente",
+  "proxyUrl": ""
+}
+```
+
+### 💡 Exemplos de Configuração
+
+<details>
+<summary><b>🔐 Proxy SOCKS5 com Autenticação</b></summary>
+
+```javascript
+// Configurar instância com proxy SOCKS5 autenticado
+callHiveWPAPI('instance/init', 'POST', {
+  clientId: 'empresa_segura',
+  proxyUrl: 'socks5://meuusuario:minhasenha@proxy.empresa.com:1080',
+  ignoreGroups: true,
+  webhookUrl: 'https://webhook.empresa.com/whatsapp'
+})
+.then(data => console.log('Instância com proxy criada:', data))
+.catch(err => console.error('Erro:', err));
+```
+</details>
+
+<details>
+<summary><b>🌐 Proxy HTTP Simples</b></summary>
+
+```javascript
+// Configurar instância com proxy HTTP sem autenticação
+callHiveWPAPI('instance/init', 'POST', {
+  clientId: 'cliente_publico',
+  proxyUrl: 'http://proxy-publico.example.com:8080'
+})
+.then(data => console.log('Instância com proxy HTTP criada:', data))
+.catch(err => console.error('Erro:', err));
+```
+</details>
+
+<details>
+<summary><b>🔄 Alternar Proxy em Instância Existente</b></summary>
+
+```javascript
+// Alterar proxy de uma instância já criada
+callHiveWPAPI('instance/config', 'POST', {
+  clientId: 'cliente_existente',
+  proxyUrl: 'socks5://novo-proxy.example.com:1080'
+})
+.then(data => console.log('Proxy atualizado:', data))
+.catch(err => console.error('Erro:', err));
+
+// Remover proxy completamente
+callHiveWPAPI('instance/config', 'POST', {
+  clientId: 'cliente_existente',
+  proxyUrl: ''
+})
+.then(data => console.log('Proxy removido:', data))
+.catch(err => console.error('Erro:', err));
+```
+</details>
+
+### ⚙️ Considerações Importantes
+
+| Aspecto | Descrição |
+|---------|------------|
+| 🔄 **Reconexão** | Mudanças de proxy requerem reinicialização da instância |
+| 🔒 **Segurança** | Use proxies confiáveis - credenciais são transmitidas |
+| 🚀 **Performance** | Proxies podem adicionar latência às conexões |
+| 📊 **Logs** | Configurações de proxy são logadas (credenciais mascaradas) |
+| 🌐 **Cobertura** | Proxy é usado tanto para WebSocket quanto para upload/download de mídia |
+
+### 🛠️ Resolução de Problemas
+
+**Proxy não conecta:**
+- Verifique se o formato da URL está correto
+- Confirme se as credenciais estão válidas
+- Teste se o proxy está acessível da sua rede
+
+**Conexão lenta:**
+- Proxies podem adicionar latência
+- Considere usar proxies geograficamente próximos
+- Monitore logs para identificar timeouts
+
+**Erro de autenticação:**
+- Verifique usuário e senha do proxy
+- Alguns proxies podem ter caracteres especiais que precisam ser codificados na URL
+
 ## 📝 Exemplos de Uso
 
 Esta seção contém exemplos práticos de como utilizar a API com JavaScript.
@@ -627,7 +767,8 @@ async function callHiveWPAPI(endpoint, method, data) {
 callHiveWPAPI('instance/init', 'POST', {
   clientId: 'empresa_a',
   ignoreGroups: true,
-  webhookUrl: "https://sua-url.com/webhook/empresa_a"
+  webhookUrl: "https://sua-url.com/webhook/empresa_a",
+  proxyUrl: "socks5://user:pass@proxy.example.com:1080"
 })
 .then(data => console.log('Instância da Empresa A criada:', data))
 .catch(err => console.error('Erro:', err));
@@ -782,7 +923,8 @@ function getQRCodeUrl(clientId) {
 // Inicializar nova instância
 callHiveWPAPI('instance/init', 'POST', {
   clientId: 'novo_cliente',
-  webhookUrl: 'https://seu-servidor.com/webhook/novo_cliente'
+  webhookUrl: 'https://seu-servidor.com/webhook/novo_cliente',
+  proxyUrl: "socks5://user:pass@proxy.example.com:1080"
 })
 .then(result => {
   if (result.success) {

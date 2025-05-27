@@ -1122,3 +1122,98 @@ textarea.form-control {
         width: 90%;
     }
 }
+
+/* Proxy Examples Styling */
+.proxy-examples {
+    margin-top: 8px;
+    padding: 10px;
+    background-color: var(--bg-light);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-color);
+    font-size: 0.85rem;
+}
+
+.proxy-examples strong {
+    color: var(--text-color);
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.proxy-examples ul {
+    margin: 8px 0 0 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.proxy-examples li {
+    margin: 4px 0;
+    padding: 4px 8px;
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+.proxy-examples code {
+    color: var(--primary-color);
+    background: none;
+    padding: 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Enhanced form styling for proxy configuration */
+.form-group.proxy-config {
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    background-color: var(--bg-light);
+}
+
+.form-group.proxy-config label {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Configuration sections in forms */
+.config-section {
+    margin-bottom: 25px;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: var(--bg-light);
+    border-left: 4px solid var(--primary-color);
+}
+
+.config-section h4 {
+    margin: 0 0 15px 0;
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* Instance configuration badges */
+.config-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.config-badge.proxy {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+}
+
+.config-badge.webhook {
+    background-color: rgba(46, 204, 113, 0.1);
+    color: var(--success-color);
+}
+
+.config-badge.groups-ignored {
+    background-color: rgba(241, 196, 15, 0.1);
+    color: var(--warning-color);
+}

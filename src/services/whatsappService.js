@@ -12,6 +12,8 @@ const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode');
+const { SocksProxyAgent } = require('socks-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // Objeto para armazenar múltiplas instâncias
 const instances = {};
@@ -50,6 +52,37 @@ const CACHE_CLEANUP_FREQUENCY = 1000;
 
 // Configuração global para ignorar grupos (pode ser sobrescrita por instância)
 const DEFAULT_IGNORE_GROUPS = process.env.IGNORE_GROUPS === 'true' || false;
+
+/**
+ * Cria um agente proxy baseado na URL fornecida
+ * @param {string} proxyUrl - URL do proxy (ex: socks5://user:pass@host:port ou http://host:port)
+ * @returns {Agent|null} Agente proxy configurado ou null se inválido
+ */
+const createProxyAgent = (proxyUrl) => {
+  if (!proxyUrl) return null;
+  
+  try {
+    const url = new URL(proxyUrl);
+    
+    // Suporte para proxies SOCKS (socks4, socks5)
+    if (url.protocol === 'socks4:' || url.protocol === 'socks5:') {
+      console.log(`Configurando proxy SOCKS: ${url.protocol}//[REDACTED]@${url.hostname}:${url.port}`);
+      return new SocksProxyAgent(proxyUrl);
+    }
+    
+    // Suporte para proxies HTTP/HTTPS
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      console.log(`Configurando proxy HTTP: ${url.protocol}//[REDACTED]@${url.hostname}:${url.port}`);
+      return new HttpsProxyAgent(proxyUrl);
+    }
+    
+    console.warn(`Protocolo de proxy não suportado: ${url.protocol}`);
+    return null;
+  } catch (error) {
+    console.error('Erro ao criar agente proxy:', error.message);
+    return null;
+  }
+};
 
 /**
  * Limpa entradas antigas do cache - executado apenas ocasionalmente
@@ -225,7 +258,8 @@ const getActiveInstances = () => {
     status: instances[id]?.connectionStatus || 'disconnected',
     config: {
       ignoreGroups: instances[id]?.ignoreGroups || false,
-      webhookUrl: instances[id]?.webhookUrl || ''
+      webhookUrl: instances[id]?.webhookUrl || '',
+      proxyUrl: instances[id]?.proxyUrl || ''
     }
   }));
 };
@@ -261,6 +295,7 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         connectionStatus: 'disconnected',
         ignoreGroups: options.ignoreGroups !== undefined ? options.ignoreGroups : (metadata.ignoreGroups || DEFAULT_IGNORE_GROUPS),
         webhookUrl: options.webhookUrl || metadata.webhookUrl || '',
+        proxyUrl: options.proxyUrl || metadata.proxyUrl || '',
         created: metadata.created || new Date().toISOString()
       };
     } else {
@@ -271,12 +306,27 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       if (options.webhookUrl !== undefined) {
         instances[clientId].webhookUrl = options.webhookUrl;
       }
+      if (options.proxyUrl !== undefined) {
+        instances[clientId].proxyUrl = options.proxyUrl;
+      }
+    }
+    
+    // Configurar proxy se fornecido
+    let proxyAgent = null;
+    if (instances[clientId].proxyUrl) {
+      proxyAgent = createProxyAgent(instances[clientId].proxyUrl);
+      if (proxyAgent) {
+        console.log(`[${clientId}] Proxy configurado com sucesso`);
+      } else {
+        console.warn(`[${clientId}] Falha ao configurar proxy: ${instances[clientId].proxyUrl}`);
+      }
     }
     
     // Salvar metadados logo que a instância é criada/atualizada
     saveInstanceMetadata(clientId, {
       ignoreGroups: instances[clientId].ignoreGroups,
       webhookUrl: instances[clientId].webhookUrl,
+      proxyUrl: instances[clientId].proxyUrl,
       created: instances[clientId].created,
       status: 'created'
     });
@@ -294,7 +344,7 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
     });
     
     // Criar socket do WhatsApp com configurações otimizadas
-    instances[clientId].sock = makeWASocket({
+    const socketConfig = {
       version,
       logger: logger,
       printQRInTerminal: true,
@@ -309,7 +359,16 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       connectTimeoutMs: 30000,     // Timeout para conexão inicial
       keepAliveIntervalMs: 25000,  // Manter conexão ativa
       emitOwnEvents: false         // Reduzir processamento de eventos
-    });
+    };
+    
+    // Adicionar configurações de proxy se disponível
+    if (proxyAgent) {
+      socketConfig.agent = proxyAgent;      // Para conexões WebSocket
+      socketConfig.fetchAgent = proxyAgent; // Para upload/download de mídia
+      console.log(`[${clientId}] Configurações de proxy aplicadas ao socket`);
+    }
+    
+    instances[clientId].sock = makeWASocket(socketConfig);
 
     const sock = instances[clientId].sock;
 
@@ -1180,6 +1239,7 @@ const updateInstanceConfig = (clientId = 'default', config = {}) => {
     
     // Atualizar apenas as configurações fornecidas
     let configChanged = false;
+    let proxyChanged = false;
     
     if (config.ignoreGroups !== undefined) {
       instances[clientId].ignoreGroups = !!config.ignoreGroups;
@@ -1191,12 +1251,25 @@ const updateInstanceConfig = (clientId = 'default', config = {}) => {
       configChanged = true;
     }
     
+    if (config.proxyUrl !== undefined) {
+      const oldProxyUrl = instances[clientId].proxyUrl || '';
+      const newProxyUrl = config.proxyUrl || '';
+      
+      if (oldProxyUrl !== newProxyUrl) {
+        instances[clientId].proxyUrl = newProxyUrl;
+        configChanged = true;
+        proxyChanged = true;
+        console.log(`[${clientId}] Proxy URL alterado de "${oldProxyUrl}" para "${newProxyUrl}"`);
+      }
+    }
+    
     // Forçar o salvamento imediato dos metadados quando as configurações são alteradas
     if (configChanged) {
       // Salvar metadados com força=true para ignorar throttling
       saveInstanceMetadata(clientId, {
         ignoreGroups: instances[clientId].ignoreGroups,
         webhookUrl: instances[clientId].webhookUrl,
+        proxyUrl: instances[clientId].proxyUrl,
         configUpdatedAt: new Date().toISOString()
       }, true);
       
@@ -1206,9 +1279,12 @@ const updateInstanceConfig = (clientId = 'default', config = {}) => {
     return {
       success: true,
       message: `Configurações do cliente ${clientId} atualizadas com sucesso`,
+      proxyChanged: proxyChanged,
+      reconnectionRecommended: proxyChanged,
       config: {
         ignoreGroups: instances[clientId].ignoreGroups,
-        webhookUrl: instances[clientId].webhookUrl
+        webhookUrl: instances[clientId].webhookUrl,
+        proxyUrl: instances[clientId].proxyUrl
       }
     };
   } catch (error) {

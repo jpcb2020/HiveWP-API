@@ -95,7 +95,8 @@ async function initPage() {
         refreshQrBtn: document.getElementById('refresh-qr'),
         ignoreGroups: document.getElementById('ignore-groups'),
         webhookUrl: document.getElementById('webhook-url'),
-        saveSettings: document.getElementById('save-settings')
+        saveSettings: document.getElementById('save-settings'),
+        proxyUrl: document.getElementById('proxy-url')
     };
     
     elements.instanceName.textContent = clientId;
@@ -212,6 +213,10 @@ function updateInstanceData(data) {
         // Update webhook URL
         if (data.config.webhookUrl !== undefined) {
             elements.webhookUrl.value = data.config.webhookUrl;
+        }
+        // Update proxy URL
+        if (data.config.proxyUrl !== undefined) {
+            elements.proxyUrl.value = data.config.proxyUrl || '';
         }
     }
     
@@ -513,6 +518,7 @@ async function saveInstanceSettings() {
         // Get form values
         const ignoreGroups = elements.ignoreGroups.checked;
         const webhookUrl = elements.webhookUrl.value.trim();
+        const proxyUrl = elements.proxyUrl.value.trim();
         
         // Prepare request payload
         const payload = {
@@ -526,6 +532,14 @@ async function saveInstanceSettings() {
         } else {
             // Empty string will clear the webhook
             payload.webhookUrl = "";
+        }
+        
+        // Only include proxyUrl if it's set
+        if (proxyUrl !== '') {
+            payload.proxyUrl = proxyUrl;
+        } else {
+            // Empty string will clear the proxy
+            payload.proxyUrl = "";
         }
         
         // Show loading state
@@ -550,10 +564,30 @@ async function saveInstanceSettings() {
             if (state.instance && state.instance.config) {
                 state.instance.config.ignoreGroups = ignoreGroups;
                 state.instance.config.webhookUrl = webhookUrl;
+                state.instance.config.proxyUrl = proxyUrl;
             }
             
             // Show success message
-            showAlert('Success', 'Instance settings saved successfully', 'success');
+            let successMessage = 'Instance settings saved successfully';
+            
+            // Check if reconnection is recommended due to proxy changes
+            if (data.reconnectionRecommended && data.proxyChanged) {
+                successMessage += '. Proxy configuration changed - reconnection recommended for changes to take effect.';
+                
+                // Ask user if they want to reconnect now
+                setTimeout(async () => {
+                    const shouldReconnect = await showConfirm(
+                        'The proxy configuration has changed. Would you like to reconnect the instance now for the changes to take effect?',
+                        'Reconnection Recommended'
+                    );
+                    
+                    if (shouldReconnect) {
+                        await reconnectInstance();
+                    }
+                }, 1000);
+            }
+            
+            showAlert('Success', successMessage, 'success');
             addLogEntry('Settings updated');
         } else {
             showAlert('Error', data.error || 'Failed to save settings', 'error');

@@ -132,6 +132,26 @@
                             <small>All received messages will be sent to this URL</small>
                         </div>
 
+                        <div class="form-group">
+                            <label for="proxy-url">Proxy URL</label>
+                            <input 
+                                type="text" 
+                                id="proxy-url" 
+                                name="proxy-url" 
+                                placeholder="socks5://user:pass@proxy.example.com:1080"
+                                class="form-control"
+                            >
+                            <small>Optional proxy for WhatsApp connections. Supports SOCKS4/5 and HTTP/HTTPS</small>
+                            <div class="proxy-examples">
+                                <strong>Examples:</strong>
+                                <ul>
+                                    <li><code>socks5://user:pass@proxy.example.com:1080</code></li>
+                                    <li><code>http://proxy.example.com:8080</code></li>
+                                    <li><code>https://user:pass@proxy.example.com:8080</code></li>
+                                </ul>
+                            </div>
+                        </div>
+
                         <div class="form-actions">
                             <button id="save-settings" class="btn primary">
                                 <i class="fas fa-save"></i> Save Settings

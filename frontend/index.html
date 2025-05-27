@@ -160,7 +160,49 @@
                     <div class="form-group">
                         <label for="instance-id">Instance ID (clientId)</label>
                         <input type="text" id="instance-id" class="form-control" required>
+                        <small>Unique identifier for this WhatsApp instance</small>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="ignore-groups-new">
+                            <input type="checkbox" id="ignore-groups-new" name="ignore-groups-new">
+                            Ignore Group Messages
+                        </label>
+                        <small>When enabled, messages from group chats will be ignored</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="webhook-url-new">Webhook URL (Optional)</label>
+                        <input 
+                            type="url" 
+                            id="webhook-url-new" 
+                            name="webhook-url-new" 
+                            placeholder="https://your-webhook-url.com/endpoint"
+                            class="form-control"
+                        >
+                        <small>All received messages will be sent to this URL</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proxy-url-new">Proxy URL (Optional)</label>
+                        <input 
+                            type="text" 
+                            id="proxy-url-new" 
+                            name="proxy-url-new" 
+                            placeholder="socks5://user:pass@proxy.example.com:1080"
+                            class="form-control"
+                        >
+                        <small>Proxy for WhatsApp connections. Supports SOCKS4/5 and HTTP/HTTPS</small>
+                        <div class="proxy-examples" style="margin-top: 5px; font-size: 0.8em;">
+                            <strong>Examples:</strong>
+                            <ul style="margin: 5px 0; padding-left: 20px;">
+                                <li><code>socks5://user:pass@proxy.example.com:1080</code></li>
+                                <li><code>http://proxy.example.com:8080</code></li>
+                                <li><code>https://user:pass@proxy.example.com:8080</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn primary">Create Instance</button>
                 </form>
             </div>

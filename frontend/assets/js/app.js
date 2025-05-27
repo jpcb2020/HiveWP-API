@@ -273,7 +273,7 @@ async function checkInstanceStatus(clientId) {
 }
 
 // Initialize a new WhatsApp instance
-async function initializeInstance(clientId) {
+async function initializeInstance(clientId, initOptions = {}) {
     try {
         const instance = state.instances.find(i => i.clientId === clientId);
         if (instance) {
@@ -283,7 +283,7 @@ async function initializeInstance(clientId) {
         
         const response = await fetchData(`${state.apiUrl}/api/whatsapp/instance/init`, {
             method: 'POST',
-            body: JSON.stringify({ clientId })
+            body: JSON.stringify(initOptions)
         });
         
         const data = response;
@@ -400,8 +400,14 @@ async function handleAddInstance(e) {
     e.preventDefault();
     
     const idInput = document.getElementById('instance-id');
+    const ignoreGroupsInput = document.getElementById('ignore-groups-new');
+    const webhookUrlInput = document.getElementById('webhook-url-new');
+    const proxyUrlInput = document.getElementById('proxy-url-new');
     
     const clientId = idInput.value.trim();
+    const ignoreGroups = ignoreGroupsInput.checked;
+    const webhookUrl = webhookUrlInput.value.trim();
+    const proxyUrl = proxyUrlInput.value.trim();
     
     if (!clientId) {
         showAlert('Validation Error', 'Instance ID is required');
@@ -429,18 +435,28 @@ async function handleAddInstance(e) {
     
     // Reset form and close modal
     idInput.value = '';
+    ignoreGroupsInput.checked = false;
+    webhookUrlInput.value = '';
+    proxyUrlInput.value = '';
     hideModal(elements.addInstanceModal);
     
     addActivity(`Added new instance: ${clientId}`);
     
-    // Ask to initialize usando nossa confirmação personalizada
+    // Ask to initialize using our custom confirmation
     const shouldInitialize = await showConfirm(
         `Gostaria de inicializar a instância do WhatsApp "${clientId}" agora?`,
         'Inicializar Instância'
     );
     
     if (shouldInitialize) {
-        await initializeInstance(clientId);
+        // Initialize with the configuration options
+        const initOptions = { clientId };
+        
+        if (ignoreGroups) initOptions.ignoreGroups = ignoreGroups;
+        if (webhookUrl) initOptions.webhookUrl = webhookUrl;
+        if (proxyUrl) initOptions.proxyUrl = proxyUrl;
+        
+        await initializeInstance(clientId, initOptions);
     }
 }
 
