@@ -99,6 +99,14 @@ async function initPage() {
         proxyUrl: document.getElementById('proxy-url')
     };
     
+    // Debug: Check if important elements exist
+    console.log('Elements check:', {
+        reconnectBtn: !!elements.reconnectBtn,
+        logoutBtn: !!elements.logoutBtn,
+        deleteBtn: !!elements.deleteBtn,
+        alertModal: !!elements.alertModal
+    });
+    
     elements.instanceName.textContent = clientId;
     
     // Set up tabs
@@ -110,9 +118,26 @@ async function initPage() {
     });
     
     // Set up action buttons
-    elements.reconnectBtn.addEventListener('click', reconnectInstance);
-    elements.logoutBtn.addEventListener('click', logoutInstance);
-    elements.deleteBtn.addEventListener('click', deleteInstance);
+    if (elements.reconnectBtn) {
+        elements.reconnectBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            reconnectInstance();
+        });
+    }
+    
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logoutInstance();
+        });
+    }
+    
+    if (elements.deleteBtn) {
+        elements.deleteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            deleteInstance();
+        });
+    }
     
     // Setup refresh QR button
     elements.refreshQrBtn.addEventListener('click', fetchQrCode);
@@ -125,11 +150,14 @@ async function initPage() {
         elements.sidebar.classList.toggle('expanded');
     });
     
-    // Setup close modal buttons
+    // Setup close modal buttons - mas excluir os do modal de confirmação
     document.querySelectorAll('.close-modal').forEach(btn => {
-        btn.addEventListener('click', e => {
-            closeModal(e.target.closest('.modal'));
-        });
+        // Não adicionar listener se for um botão do modal de confirmação
+        if (!btn.closest('#confirm-modal')) {
+            btn.addEventListener('click', e => {
+                closeModal(e.target.closest('.modal'));
+            });
+        }
     });
     
     // Start data loading
@@ -137,6 +165,18 @@ async function initPage() {
     
     // Set up periodic status check
     state.statusCheckInterval = setInterval(checkInstanceStatus, 10000); // Check every 10 seconds
+    
+    // Debug: Test button functionality
+    console.log('Page initialization completed. Testing button functionality...');
+    console.log('ClientId:', clientId);
+    console.log('API URL:', apiUrl);
+    
+    // Add click event test for debugging
+    if (elements.reconnectBtn) {
+        console.log('Reconnect button found and ready');
+    } else {
+        console.error('Reconnect button not found!');
+    }
 }
 
 // Load instance data
@@ -334,11 +374,15 @@ async function checkInstanceStatus() {
 
 // Reconnect instance
 async function reconnectInstance() {
+    console.log('reconnectInstance function called');
+    
     // Usar nossa função de confirmação personalizada em vez de confirm() nativo
     const confirmed = await showConfirm(
         `Tem certeza que deseja reconectar a instância "${clientId}"?`,
         'Confirmar Reconexão'
     );
+    
+    console.log('Confirmation result:', confirmed);
     
     if (!confirmed) {
         return;
@@ -382,11 +426,15 @@ async function reconnectInstance() {
 
 // Logout instance
 async function logoutInstance() {
+    console.log('logoutInstance function called');
+    
     // Usar nossa função de confirmação personalizada em vez de confirm() nativo
     const confirmed = await showConfirm(
         `Tem certeza que deseja desconectar a instância "${clientId}"? Isso fará com que ela seja desconectada do WhatsApp.`,
         'Confirmar Logout'
     );
+    
+    console.log('Logout confirmation result:', confirmed);
     
     if (!confirmed) {
         return;
@@ -422,25 +470,41 @@ async function logoutInstance() {
 
 // Delete instance
 async function deleteInstance() {
+    console.log('deleteInstance function called');
+    
     // Primeira confirmação
+    console.log('Showing first confirmation dialog...');
     const firstConfirmed = await showConfirm(
         `Tem certeza que deseja EXCLUIR a instância "${clientId}"? Esta ação não pode ser desfeita.`,
         'Confirmar Exclusão'
     );
     
+    console.log('First confirmation result:', firstConfirmed);
+    
     if (!firstConfirmed) {
+        console.log('First confirmation cancelled, aborting delete operation');
         return;
     }
+    
+    // Aguardar um pouco antes da segunda confirmação para evitar cliques acidentais
+    console.log('Waiting before second confirmation...');
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Segunda confirmação com aviso mais severo
+    console.log('Showing final confirmation dialog...');
     const finalConfirmed = await showConfirm(
         `AVISO FINAL: Isso excluirá permanentemente a instância "${clientId}" e todos os seus dados. Continuar?`,
-        'Confirmação Final',
+        'Confirmação Final - IRREVERSÍVEL'
     );
     
+    console.log('Final confirmation result:', finalConfirmed);
+    
     if (!finalConfirmed) {
+        console.log('Final confirmation cancelled, aborting delete operation');
         return;
     }
+    
+    console.log('Both confirmations accepted, proceeding with deletion...');
     
     try {
         const response = await fetch(`${apiUrl}/api/whatsapp/instance/delete`, {
@@ -630,60 +694,158 @@ function showAlert(title, message, type = 'info') {
     elements.alertTitle.textContent = title;
     elements.alertMessage.textContent = message;
     
-    // Exibir o modal
-    elements.alertModal.classList.add('active');
+    // Exibir o modal usando o método correto
+    showModal(elements.alertModal);
 }
 
 // Close modal
 function closeModal(modal) {
-    modal.classList.remove('active');
+    hideModal(modal);
+}
+
+// Show/hide modal functions
+function showModal(modal) {
+    modal.style.display = 'flex';
+    // Use setTimeout para garantir que a transição funcione
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+    
+    // Para modais de confirmação, adicionar um pequeno delay antes de habilitar os botões
+    if (modal.id === 'confirm-modal') {
+        const buttons = modal.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+        });
+        
+        // Habilitar botões após a animação do modal e um pequeno delay adicional
+        setTimeout(() => {
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
+        }, 400); // 400ms para garantir que o modal está totalmente visível
+    }
+}
+
+function hideModal(modal) {
+    if (!modal) return;
+    
+    modal.classList.remove('show');
+    // Espere a animação terminar antes de ocultar completamente
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 350); // Aumentei um pouco o tempo para garantir que a animação termine
 }
 
 // Modal de Confirmação Personalizado
 function showConfirm(message, title = 'Confirmação', onConfirm = null, onCancel = null) {
     const confirmModal = document.getElementById('confirm-modal');
+    
+    if (!confirmModal) {
+        console.error('Modal de confirmação não encontrado');
+        return Promise.resolve(false);
+    }
+    
     const confirmTitle = document.getElementById('confirm-title');
     const confirmMessage = document.getElementById('confirm-message');
     const headerTitle = document.getElementById('confirm-header-title');
     
     // Definir título e mensagem
-    confirmTitle.textContent = title;
-    headerTitle.textContent = title;
-    confirmMessage.textContent = message;
+    if (confirmTitle) confirmTitle.textContent = title;
+    if (headerTitle) headerTitle.textContent = title;
+    if (confirmMessage) confirmMessage.textContent = message;
+    
+    // Prevenir que o modal feche acidentalmente - remover todos os listeners antigos
+    const allCloseButtons = confirmModal.querySelectorAll('.close-confirm, .close-modal');
+    allCloseButtons.forEach(btn => {
+        // Criar um novo elemento para remover todos os listeners antigos
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+    });
     
     // Mostrar o modal
-    confirmModal.classList.add('active');
-    
-    // Remover listeners anteriores para evitar duplicação
-    const closeButtons = confirmModal.querySelectorAll('.close-confirm');
-    closeButtons.forEach(btn => {
-        const clonedBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(clonedBtn, btn);
-    });
-    
-    // Adicionar event listeners para os botões
-    confirmModal.querySelectorAll('.close-confirm').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const result = this.getAttribute('data-result') === 'true';
-            closeModal(confirmModal);
-            
-            // Executar o callback apropriado
-            if (result && typeof onConfirm === 'function') {
-                onConfirm();
-            } else if (!result && typeof onCancel === 'function') {
-                onCancel();
-            }
-        }, { once: true }); // O listener só é executado uma vez
-    });
+    showModal(confirmModal);
     
     // Retorna uma Promise para permitir uso com await
     return new Promise(resolve => {
-        confirmModal.querySelectorAll('.close-confirm').forEach(btn => {
-            btn.addEventListener('click', function() {
+        let isResolved = false; // Flag para evitar resolução múltipla
+        
+        // Função para resolver apenas uma vez
+        const resolveOnce = (result) => {
+            if (!isResolved) {
+                isResolved = true;
+                hideModal(confirmModal);
+                
+                // Pequeno delay antes de resolver para garantir que o modal feche visualmente
+                setTimeout(() => {
+                    resolve(result);
+                }, 100);
+            }
+        };
+        
+        // Adicionar event listeners apenas aos botões do modal de confirmação atual
+        const confirmButtons = confirmModal.querySelectorAll('.close-confirm');
+        confirmButtons.forEach(btn => {
+            btn.addEventListener('click', function handleConfirmClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const result = this.getAttribute('data-result') === 'true';
-                resolve(result);
+                console.log('Confirm button clicked, result:', result);
+                
+                // Executar callbacks se fornecidos
+                if (result && typeof onConfirm === 'function') {
+                    onConfirm();
+                } else if (!result && typeof onCancel === 'function') {
+                    onCancel();
+                }
+                
+                resolveOnce(result);
+            }, { once: true }); // Garante que cada listener seja executado apenas uma vez
+        });
+        
+        // Adicionar listener para o X (fechar) que deve cancelar
+        const closeModalButtons = confirmModal.querySelectorAll('.close-modal');
+        closeModalButtons.forEach(btn => {
+            btn.addEventListener('click', function handleCloseClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Close modal button clicked');
+                
+                if (typeof onCancel === 'function') {
+                    onCancel();
+                }
+                
+                resolveOnce(false);
             }, { once: true });
         });
+        
+        // Adicionar listener para ESC key para cancelar
+        const escapeHandler = function(e) {
+            if (e.key === 'Escape' && !isResolved) {
+                console.log('Escape key pressed');
+                
+                if (typeof onCancel === 'function') {
+                    onCancel();
+                }
+                
+                document.removeEventListener('keydown', escapeHandler);
+                resolveOnce(false);
+            }
+        };
+        
+        document.addEventListener('keydown', escapeHandler);
+        
+        // Adicionar timeout de segurança (opcional - apenas para debug)
+        setTimeout(() => {
+            if (!isResolved) {
+                console.warn('Modal de confirmação ficou aberto por muito tempo, fechando automaticamente');
+                resolveOnce(false);
+            }
+        }, 60000); // 60 segundos de timeout
     });
 }
 

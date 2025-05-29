@@ -4,9 +4,13 @@ require('./utils/crypto-polyfill');
 // Configurar dotenv para variáveis de ambiente
 require('dotenv').config();
 
+// Configurar sistema de logs
+const { getLogger, requestLogger } = require('./config/logger');
+const logger = getLogger('app');
+
 // Verificar se API_KEY está configurada
 if (!process.env.API_KEY) {
-  console.error('\x1b[31m%s\x1b[0m', 'ERRO: API_KEY não encontrada no arquivo .env!');
+  logger.critical('API_KEY não encontrada no arquivo .env!');
   console.log('\x1b[33m%s\x1b[0m', 'Por favor, crie um arquivo .env na raiz do projeto com o seguinte conteúdo:');
   console.log('\x1b[33m%s\x1b[0m', 'Ou substitua pelo seu próprio código aleatório de segurança.');
   process.exit(1);
@@ -27,6 +31,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Adicionar middleware de logs de requisições
+app.use(requestLogger);
+
 // Servir arquivos estáticos do frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -46,16 +53,16 @@ app.get('/', (req, res) => {
 // Carregar instâncias existentes
 (async () => {
   try {
-    console.log('Carregando instâncias existentes...');
+    logger.info('Carregando instâncias existentes...');
     const sessions = await whatsappService.loadExistingSessions();
-    console.log(`${sessions.length} instâncias carregadas com sucesso!`);
+    logger.info(`${sessions.length} instâncias carregadas com sucesso`);
   } catch (error) {
-    console.error('Erro ao carregar instâncias:', error);
+    logger.error('Erro ao carregar instâncias', error);
   }
 })();
 
 // Iniciar o servidor
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-  console.log(`Frontend disponível em http://localhost:${PORT}`);
+  logger.info(`Servidor rodando na porta ${PORT}`);
+  logger.info(`Frontend disponível em http://localhost:${PORT}`);
 });
