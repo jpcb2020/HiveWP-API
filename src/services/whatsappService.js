@@ -443,10 +443,19 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             }, delaySeconds * 1000);
           } else {
             console.log(`[${clientId}] Desconectado do WhatsApp (logout).`);
+            
+            // Salvar configurações atuais antes da limpeza
+            const currentConfig = {
+              ignoreGroups: instances[clientId].ignoreGroups,
+              webhookUrl: instances[clientId].webhookUrl,
+              proxyUrl: instances[clientId].proxyUrl
+            };
+            
             // Atualizar metadados para indicar logout
             saveInstanceMetadata(clientId, {
               status: 'logged_out',
-              logoutTime: new Date().toISOString()
+              logoutTime: new Date().toISOString(),
+              logoutType: 'automatic'
             });
             
             // Remover apenas os arquivos de credenciais, preservando metadados
@@ -464,6 +473,19 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
                 fs.unlinkSync(path.join(SESSION_PATH, file));
               }
             }
+            
+            // Reinicializar automaticamente após logout para gerar novo QR code
+            console.log(`[${clientId}] Reinicializando conexão automaticamente após logout...`);
+            setTimeout(async () => {
+              try {
+                if (instances[clientId]) {
+                  await initializeWhatsApp(clientId, currentConfig);
+                  console.log(`[${clientId}] Nova conexão inicializada após logout automático`);
+                }
+              } catch (error) {
+                console.error(`[${clientId}] Erro ao reinicializar após logout automático:`, error);
+              }
+            }, 2000); // Aguardar 2 segundos antes de reinicializar
           }
         }
       }
@@ -1127,20 +1149,67 @@ const logout = async (clientId = 'default') => {
       };
     }
     
+    console.log(`[${clientId}] Iniciando logout...`);
+    
+    // Salvar configurações atuais antes do logout
+    const currentConfig = {
+      ignoreGroups: instances[clientId].ignoreGroups,
+      webhookUrl: instances[clientId].webhookUrl,
+      proxyUrl: instances[clientId].proxyUrl
+    };
+    
     // Logout do WhatsApp
     await instances[clientId].sock.logout();
     
+    // Atualizar metadados
+    saveInstanceMetadata(clientId, {
+      status: 'logged_out',
+      logoutTime: new Date().toISOString(),
+      logoutType: 'manual'
+    }, true);
+    
     // Limpar variáveis
     instances[clientId].isConnected = false;
-    instances[clientId].connectionStatus = 'disconnected';
+    instances[clientId].connectionStatus = 'logged_out';
     instances[clientId].qrText = '';
     
-    return {
-      success: true,
-      message: `Cliente ${clientId} desconectado com sucesso`
-    };
+    console.log(`[${clientId}] Logout realizado com sucesso, reinicializando conexão...`);
+    
+    // Aguardar um momento para garantir que o logout foi processado
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Reinicializar automaticamente com as mesmas configurações
+    try {
+      await initializeWhatsApp(clientId, currentConfig);
+      console.log(`[${clientId}] Nova conexão inicializada após logout`);
+      
+      return {
+        success: true,
+        message: `Cliente ${clientId} desconectado com sucesso e nova conexão inicializada`,
+        timestamp: new Date().toISOString(),
+        autoReconnected: true
+      };
+    } catch (reconnectError) {
+      console.error(`[${clientId}] Erro ao reinicializar após logout:`, reconnectError);
+      
+      return {
+        success: true,
+        message: `Cliente ${clientId} desconectado com sucesso, mas houve erro na reinicialização`,
+        timestamp: new Date().toISOString(),
+        autoReconnected: false,
+        reconnectError: reconnectError.message
+      };
+    }
+    
   } catch (error) {
     console.error(`[${clientId}] Erro ao desconectar:`, error);
+    
+    // Salvar erro nos metadados
+    saveInstanceMetadata(clientId, {
+      lastError: error.message,
+      lastErrorTime: new Date().toISOString()
+    });
+    
     return {
       success: false,
       error: error.message || 'Erro ao desconectar'

@@ -430,7 +430,7 @@ async function logoutInstance() {
     
     // Usar nossa função de confirmação personalizada em vez de confirm() nativo
     const confirmed = await showConfirm(
-        `Tem certeza que deseja desconectar a instância "${clientId}"? Isso fará com que ela seja desconectada do WhatsApp.`,
+        `Tem certeza que deseja desconectar a instância "${clientId}"? Isso fará com que ela seja desconectada do WhatsApp e um novo QR code será gerado automaticamente.`,
         'Confirmar Logout'
     );
     
@@ -441,6 +441,10 @@ async function logoutInstance() {
     }
     
     try {
+        // Show loading state
+        elements.statusBadge.textContent = 'Logging out...';
+        elements.statusBadge.className = 'status-badge status-disconnected';
+        
         const response = await fetch(`${apiUrl}/api/whatsapp/logout`, {
             method: 'POST',
             headers: getAuthHeader(),
@@ -450,21 +454,42 @@ async function logoutInstance() {
         const data = await response.json();
         
         if (data.success) {
-            showAlert('Success', 'Instance logged out successfully', 'success');
+            showAlert('Success', 'Instance logged out successfully. Generating new QR code...', 'success');
             addLogEntry('Logged out from WhatsApp');
             
-            // Update status
-            elements.statusBadge.textContent = 'Disconnected';
-            elements.statusBadge.className = 'status-badge status-disconnected';
+            if (data.autoReconnected) {
+                addLogEntry('New connection initialized automatically');
+                elements.statusBadge.textContent = 'Waiting for QR scan';
+                elements.statusBadge.className = 'status-badge status-disconnected';
+            } else if (data.reconnectError) {
+                addLogEntry(`Reconnection failed: ${data.reconnectError}`);
+            }
             
-            // Reload instance data
-            setTimeout(loadInstanceData, 1000);
+            // Wait a bit longer for the new connection to initialize and generate QR
+            setTimeout(() => {
+                loadInstanceData();
+            }, 3000); // Aumentado para 3 segundos
+            
+            // Also start checking for status changes more frequently
+            const quickCheckInterval = setInterval(() => {
+                checkInstanceStatus();
+            }, 2000);
+            
+            // Stop the quick checking after 30 seconds
+            setTimeout(() => {
+                clearInterval(quickCheckInterval);
+            }, 30000);
+            
         } else {
             showAlert('Error', data.error || 'Failed to logout instance');
+            elements.statusBadge.textContent = 'Error';
+            elements.statusBadge.className = 'status-badge status-disconnected';
         }
     } catch (error) {
         console.error('Error logging out instance:', error);
         showAlert('Connection Error', 'Failed to connect to the API', 'error');
+        elements.statusBadge.textContent = 'Connection Error';
+        elements.statusBadge.className = 'status-badge status-disconnected';
     }
 }
 
