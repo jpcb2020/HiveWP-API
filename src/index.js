@@ -43,7 +43,8 @@ const globalLimiter = rateLimit({
   message: { success: false, error: 'Muitas requisições originadas deste IP, por favor, tente novamente mais tarde.' },
   // Pode-se adicionar um handler para logar quando o limite é atingido
   handler: (req, res, next, options) => {
-    const logger = require('./config/logger').getLogger('security');
+    const { getLogger } = require('./config/logger');
+    const logger = getLogger('security');
     logger.warn(`Rate limit excedido por IP: ${req.ip}`, { 
         path: req.path, 
         method: req.method,

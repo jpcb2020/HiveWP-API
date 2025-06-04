@@ -30,7 +30,8 @@ const messageLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, error: 'Muitas tentativas de envio de mensagem. Por favor, aguarde um momento.' },
   handler: (req, res, next, options) => {
-    const logger = require('../config/logger').getLogger('security');
+    const { getLogger } = require('../config/logger');
+    const logger = getLogger('security');
     logger.warn(`Rate limit de envio de mensagens excedido por IP: ${req.ip}`, {
         path: req.path,
         method: req.method,
