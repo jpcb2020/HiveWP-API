@@ -195,8 +195,26 @@ const HiveUtils = {
                 }
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({ error: `Erro desconhecido ao processar resposta ${response.status}`, details: [] }));
+                    // Priorizar errorData.error, depois errorData.message, e por último o status genérico.
+                    // Também garantir que errorData.error ou .message seja uma string.
+                    let errorMessage = 'Erro desconhecido na requisição.';
+                    if (errorData && typeof errorData.error === 'string') {
+                        errorMessage = errorData.error;
+                    } else if (errorData && typeof errorData.message === 'string') {
+                        errorMessage = errorData.message;
+                    } else {
+                        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    
+                    // Adicionar detalhes da validação Joi à mensagem, se disponíveis
+                    if (errorData.details && Array.isArray(errorData.details)) {
+                        const validationMessages = errorData.details.map(d => d.message).join('; ');
+                        if (validationMessages) {
+                            errorMessage += ` Detalhes: ${validationMessages}`;
+                        }
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 return await response.json();
