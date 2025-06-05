@@ -271,14 +271,20 @@ function updateSummaryCards(metrics) {
 
 // Function to update status badges and visual indicators
 function updateStatusBadges(metrics) {
-    // Memory status
+    // Memory status - baseado no RSS que é mais importante para monitoramento
     const memoryStatusEl = document.getElementById('memory-status');
     if (memoryStatusEl && metrics.performance.memory) {
-        const memoryPercent = (metrics.performance.memory.heapUsed / metrics.performance.memory.heapTotal) * 100;
-        if (memoryPercent < 70) {
+        const rssInMB = metrics.performance.memory.rss;
+        
+        // Thresholds baseados no RSS (memória real usada)
+        // Para sistema otimizado para 100+ instâncias:
+        if (rssInMB < 200) {
+            memoryStatusEl.textContent = 'Excelente';
+            memoryStatusEl.className = 'metric-status good';
+        } else if (rssInMB < 500) {
             memoryStatusEl.textContent = 'Normal';
             memoryStatusEl.className = 'metric-status good';
-        } else if (memoryPercent < 85) {
+        } else if (rssInMB < 1000) {
             memoryStatusEl.textContent = 'Atenção';
             memoryStatusEl.className = 'metric-status warning';
         } else {
