@@ -102,8 +102,8 @@ router.get('/metrics', authMiddleware, (req, res) => {
     // Atualizar métricas de instâncias
     const instances = whatsappService.getActiveInstances();
     systemMetrics.instances.total = instances.length;
-    systemMetrics.instances.connected = instances.filter(i => i.isConnected).length;
-    systemMetrics.instances.disconnected = instances.filter(i => !i.isConnected).length;
+    systemMetrics.instances.connected = instances.filter(i => i.connected).length;
+    systemMetrics.instances.disconnected = instances.filter(i => !i.connected).length;
 
     // Atualizar métricas de performance
     systemMetrics.performance.memoryUsage = process.memoryUsage();
@@ -169,25 +169,25 @@ router.get('/instances/metrics', authMiddleware, (req, res) => {
     const instances = whatsappService.getActiveInstances();
     
     const instanceMetrics = instances.map(instance => ({
-      clientId: instance.clientId,
-      isConnected: instance.isConnected,
-      connectionStatus: instance.connectionStatus,
+      clientId: instance.id,
+      isConnected: instance.connected,
+      connectionStatus: instance.status,
       created: instance.created,
       lastActivity: instance.lastActivity || null,
       messagesSent: instance.messagesSent || 0,
       messagesReceived: instance.messagesReceived || 0,
       errors: instance.errorCount || 0,
       reconnectAttempts: instance.reconnectAttempts || 0,
-      hasWebhook: !!instance.webhookUrl,
-      hasProxy: !!instance.proxyUrl
+      hasWebhook: !!instance.config?.webhookUrl,
+      hasProxy: !!instance.config?.proxyUrl
     }));
 
     const summary = {
       totalInstances: instances.length,
-      connectedInstances: instances.filter(i => i.isConnected).length,
+      connectedInstances: instances.filter(i => i.connected).length,
       instancesWithErrors: instances.filter(i => (i.errorCount || 0) > 0).length,
-      instancesWithWebhooks: instances.filter(i => !!i.webhookUrl).length,
-      instancesWithProxy: instances.filter(i => !!i.proxyUrl).length,
+      instancesWithWebhooks: instances.filter(i => !!i.config?.webhookUrl).length,
+      instancesWithProxy: instances.filter(i => !!i.config?.proxyUrl).length,
       averageReconnectAttempts: instances.length > 0 
         ? (instances.reduce((sum, i) => sum + (i.reconnectAttempts || 0), 0) / instances.length).toFixed(2)
         : 0

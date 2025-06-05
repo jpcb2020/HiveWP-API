@@ -35,9 +35,31 @@
             opacity: 0.9;
         }
         
+        .section-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .section-description {
+            font-size: 1em;
+            color: #666;
+            margin-bottom: 25px;
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -49,6 +71,7 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             border-left: 5px solid #667eea;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
         }
         
         .metric-card:hover {
@@ -56,26 +79,85 @@
             box-shadow: 0 15px 40px rgba(0,0,0,0.15);
         }
         
+        .metric-card.good {
+            border-left-color: #4CAF50;
+        }
+        
+        .metric-card.warning {
+            border-left-color: #FF9800;
+        }
+        
+        .metric-card.error {
+            border-left-color: #F44336;
+        }
+        
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
         .metric-card h3 {
-            margin: 0 0 15px 0;
+            margin: 0;
             color: #333;
-            font-size: 1.3em;
+            font-size: 1.2em;
             display: flex;
             align-items: center;
             gap: 10px;
         }
         
-        .metric-value {
-            font-size: 2.5em;
-            font-weight: 700;
-            color: #667eea;
-            margin: 10px 0;
+        .metric-status {
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
         }
         
-        .metric-subtitle {
+        .metric-status.good { background: #4CAF50; }
+        .metric-status.warning { background: #FF9800; }
+        .metric-status.error { background: #F44336; }
+        
+        .metric-value {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: #667eea;
+            margin: 15px 0;
+            line-height: 1;
+        }
+        
+        .metric-value.good { color: #4CAF50; }
+        .metric-value.warning { color: #FF9800; }
+        .metric-value.error { color: #F44336; }
+        
+        .metric-description {
             color: #666;
             font-size: 0.9em;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        
+        .metric-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .metric-detail-item {
+            display: flex;
+            justify-content: space-between;
             margin: 5px 0;
+            font-size: 0.9em;
+        }
+        
+        .metric-detail-label {
+            color: #666;
+        }
+        
+        .metric-detail-value {
+            font-weight: 600;
+            color: #333;
         }
         
         .status-indicator {
@@ -90,40 +172,28 @@
         .status-warning { background-color: #FF9800; }
         .status-error { background-color: #F44336; }
         
-        .chart-container {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
         .progress-bar {
             width: 100%;
-            height: 8px;
+            height: 10px;
             background-color: #e0e0e0;
-            border-radius: 4px;
+            border-radius: 5px;
             margin: 10px 0;
             overflow: hidden;
         }
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 4px;
+            background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
+            border-radius: 5px;
             transition: width 0.3s ease;
         }
         
-        .queue-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #FF9800 0%, #f57c00 100%);
         }
         
-        .queue-item:last-child {
-            border-bottom: none;
+        .progress-fill.error {
+            background: linear-gradient(90deg, #F44336 0%, #d32f2f 100%);
         }
         
         .refresh-btn {
@@ -160,31 +230,36 @@
         .auto-refresh {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
             margin: 20px 0;
-            padding: 15px;
+            padding: 20px;
             background: #f8f9fa;
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
         }
         
         .auto-refresh label {
             font-weight: 600;
             color: #495057;
+            font-size: 1.1em;
         }
         
         .auto-refresh select {
-            padding: 5px 10px;
-            border: 1px solid #ced4da;
-            border-radius: 5px;
+            padding: 8px 15px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
             background: white;
+            font-size: 1em;
         }
         
         .last-update {
             text-align: center;
             color: #666;
             font-size: 0.9em;
-            margin-top: 20px;
+            margin-top: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
         
         .back-btn {
@@ -195,7 +270,7 @@
             color: white;
             border: none;
             border-radius: 25px;
-            padding: 10px 20px;
+            padding: 12px 25px;
             cursor: pointer;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             transition: all 0.3s ease;
@@ -204,6 +279,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            font-weight: 600;
         }
         
         .back-btn:hover {
@@ -211,14 +287,47 @@
             transform: translateY(-2px);
         }
         
-        .metric-trend {
-            font-size: 0.8em;
-            margin-left: 10px;
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
         }
         
-        .trend-up { color: #4CAF50; }
-        .trend-down { color: #F44336; }
-        .trend-stable { color: #666; }
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            border-top: 4px solid #667eea;
+        }
+        
+        .summary-card.good { border-top-color: #4CAF50; }
+        .summary-card.warning { border-top-color: #FF9800; }
+        .summary-card.error { border-top-color: #F44336; }
+        
+        .summary-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .summary-icon.good { color: #4CAF50; }
+        .summary-icon.warning { color: #FF9800; }
+        .summary-icon.error { color: #F44336; }
+        
+        .summary-title {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .summary-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -228,152 +337,310 @@
     
     <div class="monitoring-container">
         <div class="monitoring-header">
-            <h1><i class="fas fa-chart-line"></i> System Monitoring</h1>
-            <p>Real-time monitoring of HiveWP API performance and metrics</p>
+            <h1><i class="fas fa-chart-line"></i> Monitor do Sistema</h1>
+            <p>Acompanhamento em tempo real da performance e métricas do HiveWP API</p>
             <div class="status-indicator status-online"></div>
-            <span id="system-status">System Online</span>
+            <span id="system-status">Sistema Online</span>
         </div>
 
         <div class="auto-refresh">
             <label for="refresh-interval">
-                <i class="fas fa-sync-alt"></i> Auto Refresh:
+                <i class="fas fa-sync-alt"></i> Atualização Automática:
             </label>
             <select id="refresh-interval">
                 <option value="0">Manual</option>
-                <option value="5000" selected>5 seconds</option>
-                <option value="10000">10 seconds</option>
-                <option value="30000">30 seconds</option>
-                <option value="60000">1 minute</option>
+                <option value="5000" selected>A cada 5 segundos</option>
+                <option value="10000">A cada 10 segundos</option>
+                <option value="30000">A cada 30 segundos</option>
+                <option value="60000">A cada 1 minuto</option>
             </select>
-            <span id="next-refresh" class="metric-subtitle"></span>
+            <span id="next-refresh" class="metric-description"></span>
         </div>
 
-        <!-- System Overview -->
+        <!-- Resumo Geral -->
+        <h2 class="section-title">
+            <i class="fas fa-tachometer-alt"></i> Resumo Geral
+        </h2>
+        <div class="section-description">
+            <strong>Visão geral do sistema:</strong> Status do servidor, instâncias WhatsApp e performance atual.
+        </div>
+        
+        <div class="summary-cards">
+            <div class="summary-card good" id="system-summary">
+                <div class="summary-icon good"><i class="fas fa-server"></i></div>
+                <div class="summary-title">Sistema</div>
+                <div class="summary-value" id="system-uptime-summary">Online</div>
+            </div>
+            <div class="summary-card" id="instances-summary">
+                <div class="summary-icon"><i class="fab fa-whatsapp"></i></div>
+                <div class="summary-title">WhatsApp</div>
+                <div class="summary-value" id="instances-summary-value">0 Conectadas</div>
+            </div>
+            <div class="summary-card good" id="performance-summary">
+                <div class="summary-icon good"><i class="fas fa-rocket"></i></div>
+                <div class="summary-title">Performance</div>
+                <div class="summary-value" id="performance-summary-value">Excelente</div>
+            </div>
+            <div class="summary-card good" id="workers-summary">
+                <div class="summary-icon good"><i class="fas fa-cogs"></i></div>
+                <div class="summary-title">Workers</div>
+                <div class="summary-value" id="workers-summary-value">Ativos</div>
+            </div>
+        </div>
+
+        <!-- Informações do Sistema -->
+        <h2 class="section-title">
+            <i class="fas fa-server"></i> Informações do Sistema
+        </h2>
+        <div class="section-description">
+            <strong>Detalhes técnicos:</strong> Tempo de funcionamento, versão do Node.js e uso de memória.
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-clock"></i> Tempo Online</h3>
+                    <span class="metric-status good">Estável</span>
+                </div>
+                <div class="metric-value good" id="system-uptime">0s</div>
+                <div class="metric-description">Há quanto tempo o servidor está funcionando sem interrupções</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Node.js:</span>
+                        <span class="metric-detail-value" id="node-version">-</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Processo ID:</span>
+                        <span class="metric-detail-value" id="system-pid">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <h3><i class="fas fa-memory"></i> Uso de Memória</h3>
+                    <span class="metric-status good" id="memory-status">Normal</span>
+                </div>
+                <div class="metric-value" id="heap-used">0MB</div>
+                <div class="metric-description">Quantidade de memória sendo utilizada pelo sistema</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="heap-bar" style="width: 0%"></div>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Total Heap:</span>
+                        <span class="metric-detail-value" id="heap-total">0MB</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">RSS:</span>
+                        <span class="metric-detail-value" id="rss-memory">0MB</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Atividade e Performance -->
+        <h2 class="section-title">
+            <i class="fas fa-chart-area"></i> Atividade e Performance
+        </h2>
+        <div class="section-description">
+            <strong>Monitoramento de atividade:</strong> Requisições processadas e tempo de resposta do sistema.
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-exchange-alt"></i> Requisições</h3>
+                    <span class="metric-status good">Funcionando</span>
+                </div>
+                <div class="metric-value good" id="total-requests">0</div>
+                <div class="metric-description">Total de requisições processadas desde o início</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Sucesso:</span>
+                        <span class="metric-detail-value" id="success-requests">0</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Erros:</span>
+                        <span class="metric-detail-value" id="error-requests">0</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Por minuto:</span>
+                        <span class="metric-detail-value" id="requests-per-minute">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-stopwatch"></i> Velocidade</h3>
+                    <span class="metric-status good" id="speed-status">Rápido</span>
+                </div>
+                <div class="metric-value good" id="avg-response-time">0ms</div>
+                <div class="metric-description">Tempo médio para processar cada requisição</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Meta:</span>
+                        <span class="metric-detail-value">< 100ms</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Status:</span>
+                        <span class="metric-detail-value" id="performance-rating">Excelente</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WhatsApp Instâncias -->
+        <h2 class="section-title">
+            <i class="fab fa-whatsapp"></i> Instâncias WhatsApp
+        </h2>
+        <div class="section-description">
+            <strong>Status das conexões:</strong> Quantas instâncias estão conectadas e funcionando no momento.
+        </div>
+        
         <div class="metrics-grid">
             <div class="metric-card">
-                <h3><i class="fas fa-server"></i> System Health</h3>
-                <div class="metric-value" id="system-uptime">0s</div>
-                <div class="metric-subtitle">Uptime</div>
-                <div class="metric-subtitle">Node.js <span id="node-version">-</span></div>
-                <div class="metric-subtitle">PID: <span id="system-pid">-</span></div>
-            </div>
-
-            <div class="metric-card">
-                <h3><i class="fas fa-tachometer-alt"></i> Requests</h3>
-                <div class="metric-value" id="total-requests">0</div>
-                <div class="metric-subtitle">Total Requests</div>
-                <div class="metric-subtitle">Success: <span id="success-requests">0</span></div>
-                <div class="metric-subtitle">Errors: <span id="error-requests">0</span></div>
-                <div class="metric-subtitle">Rate: <span id="requests-per-minute">0</span>/min</div>
-            </div>
-
-            <div class="metric-card">
-                <h3><i class="fab fa-whatsapp"></i> WhatsApp Instances</h3>
+                <div class="metric-header">
+                    <h3><i class="fas fa-list"></i> Total de Instâncias</h3>
+                    <span class="metric-status" id="instances-status">Verificando</span>
+                </div>
                 <div class="metric-value" id="total-instances">0</div>
-                <div class="metric-subtitle">Total Instances</div>
-                <div class="metric-subtitle">Connected: <span id="connected-instances">0</span></div>
-                <div class="metric-subtitle">Disconnected: <span id="disconnected-instances">0</span></div>
-                <div class="metric-subtitle">Rate: <span id="connection-rate">0%</span></div>
-            </div>
-
-            <div class="metric-card">
-                <h3><i class="fas fa-clock"></i> Performance</h3>
-                <div class="metric-value" id="avg-response-time">0ms</div>
-                <div class="metric-subtitle">Avg Response Time</div>
-                <div class="metric-subtitle">Memory: <span id="memory-usage">0%</span></div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="memory-bar" style="width: 0%"></div>
+                <div class="metric-description">Número total de instâncias WhatsApp configuradas</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Conectadas:</span>
+                        <span class="metric-detail-value" id="connected-instances">0</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Desconectadas:</span>
+                        <span class="metric-detail-value" id="disconnected-instances">0</span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Taxa de conexão:</span>
+                        <span class="metric-detail-value" id="connection-rate">0%</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Webhook Queue System -->
-        <div class="chart-container">
-            <h3><i class="fas fa-tasks"></i> Webhook Queue System</h3>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h3><i class="fas fa-check-circle"></i> Processed</h3>
-                    <div class="metric-value" id="webhook-processed">0</div>
-                    <div class="metric-subtitle">Total Processed</div>
+        <!-- Sistema de Webhooks -->
+        <h2 class="section-title">
+            <i class="fas fa-satellite-dish"></i> Sistema de Webhooks
+        </h2>
+        <div class="section-description">
+            <strong>Processamento de mensagens:</strong> Como o sistema está lidando com o envio de notificações e webhooks.
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-check-circle"></i> Processadas</h3>
+                    <span class="metric-status good">OK</span>
                 </div>
-                
-                <div class="metric-card">
-                    <h3><i class="fas fa-times-circle"></i> Failed</h3>
-                    <div class="metric-value" id="webhook-failed">0</div>
-                    <div class="metric-subtitle">Failed Requests</div>
+                <div class="metric-value good" id="webhook-processed">0</div>
+                <div class="metric-description">Total de mensagens enviadas com sucesso para webhooks</div>
+            </div>
+            
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-times-circle"></i> Falhas</h3>
+                    <span class="metric-status good" id="webhook-error-status">OK</span>
                 </div>
-                
-                <div class="metric-card">
-                    <h3><i class="fas fa-hourglass-half"></i> Queue</h3>
-                    <div class="metric-value" id="webhook-queued">0</div>
-                    <div class="metric-subtitle">In Queue</div>
-                    <div class="metric-subtitle">Active: <span id="webhook-active">0</span></div>
+                <div class="metric-value" id="webhook-failed">0</div>
+                <div class="metric-description">Mensagens que falharam ao ser enviadas (meta: 0)</div>
+            </div>
+            
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-hourglass-half"></i> Na Fila</h3>
+                    <span class="metric-status good">Processando</span>
                 </div>
-                
-                <div class="metric-card">
+                <div class="metric-value" id="webhook-queued">0</div>
+                <div class="metric-description">Mensagens aguardando para serem enviadas</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Ativas agora:</span>
+                        <span class="metric-detail-value" id="webhook-active">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="metric-card good">
+                <div class="metric-header">
                     <h3><i class="fas fa-cogs"></i> Workers</h3>
-                    <div class="metric-value" id="webhook-status">
-                        <span class="status-indicator status-online"></span>
-                        Active
+                    <span class="metric-status good" id="workers-status-badge">Ativos</span>
+                </div>
+                <div class="metric-value good" id="webhook-status">
+                    <span class="status-indicator status-online"></span>
+                    Ativos
+                </div>
+                <div class="metric-description">25 workers prontos para processar mensagens simultaneamente</div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Capacidade da fila:</span>
+                        <span class="metric-detail-value" id="queue-size">50,000</span>
                     </div>
-                    <div class="metric-subtitle">Processing Status</div>
-                    <div class="metric-subtitle">Queue Size: <span id="queue-size">0</span></div>
                 </div>
             </div>
         </div>
 
-        <!-- Cache Performance -->
-        <div class="chart-container">
-            <h3><i class="fas fa-database"></i> Cache Performance</h3>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h3><i class="fas fa-phone"></i> Number Cache</h3>
-                    <div class="metric-value" id="number-cache-hitrate">0%</div>
-                    <div class="metric-subtitle">Hit Rate</div>
-                    <div class="metric-subtitle">Size: <span id="number-cache-size">0</span> / <span id="number-cache-max">0</span></div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="number-cache-bar" style="width: 0%"></div>
-                    </div>
-                    <div class="metric-subtitle">Hits: <span id="number-cache-hits">0</span> | Misses: <span id="number-cache-misses">0</span></div>
+        <!-- Sistema de Cache -->
+        <h2 class="section-title">
+            <i class="fas fa-database"></i> Sistema de Cache
+        </h2>
+        <div class="section-description">
+            <strong>Otimização de performance:</strong> Cache para acelerar validação de números e QR codes.
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-phone"></i> Cache de Números</h3>
+                    <span class="metric-status good">Ativo</span>
                 </div>
-                
-                <div class="metric-card">
-                    <h3><i class="fas fa-qrcode"></i> QR Cache</h3>
-                    <div class="metric-value" id="qr-cache-hitrate">0%</div>
-                    <div class="metric-subtitle">Hit Rate</div>
-                    <div class="metric-subtitle">Size: <span id="qr-cache-size">0</span> / <span id="qr-cache-max">0</span></div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="qr-cache-bar" style="width: 0%"></div>
+                <div class="metric-value" id="number-cache-hitrate">0%</div>
+                <div class="metric-description">Acelera a validação de números do WhatsApp</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="number-cache-bar" style="width: 0%"></div>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Capacidade:</span>
+                        <span class="metric-detail-value"><span id="number-cache-size">0</span> / <span id="number-cache-max">50k</span></span>
                     </div>
-                    <div class="metric-subtitle">Hits: <span id="qr-cache-hits">0</span> | Misses: <span id="qr-cache-misses">0</span></div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Acertos:</span>
+                        <span class="metric-detail-value" id="number-cache-hits">0</span>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Memory Details -->
-        <div class="chart-container">
-            <h3><i class="fas fa-memory"></i> Memory Usage Details</h3>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h3><i class="fas fa-layer-group"></i> Heap Memory</h3>
-                    <div class="metric-value" id="heap-used">0MB</div>
-                    <div class="metric-subtitle">Used / <span id="heap-total">0MB</span> Total</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="heap-bar" style="width: 0%"></div>
-                    </div>
+            
+            <div class="metric-card good">
+                <div class="metric-header">
+                    <h3><i class="fas fa-qrcode"></i> Cache de QR Codes</h3>
+                    <span class="metric-status good">Ativo</span>
                 </div>
-                
-                <div class="metric-card">
-                    <h3><i class="fas fa-chart-area"></i> RSS Memory</h3>
-                    <div class="metric-value" id="rss-memory">0MB</div>
-                    <div class="metric-subtitle">Resident Set Size</div>
-                    <div class="metric-subtitle">External: <span id="external-memory">0MB</span></div>
+                <div class="metric-value" id="qr-cache-hitrate">0%</div>
+                <div class="metric-description">Acelera a exibição de QR codes para conexão</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="qr-cache-bar" style="width: 0%"></div>
+                </div>
+                <div class="metric-details">
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Capacidade:</span>
+                        <span class="metric-detail-value"><span id="qr-cache-size">0</span> / <span id="qr-cache-max">200</span></span>
+                    </div>
+                    <div class="metric-detail-item">
+                        <span class="metric-detail-label">Acertos:</span>
+                        <span class="metric-detail-value" id="qr-cache-hits">0</span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="last-update">
-            <i class="fas fa-clock"></i> Last updated: <span id="last-update-time">Never</span>
+            <i class="fas fa-clock"></i> Última atualização: <span id="last-update-time">Nunca</span>
         </div>
     </div>
 

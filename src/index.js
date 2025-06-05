@@ -35,13 +35,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate Limiter Global (ex: 100 requisições por 15 minutos por IP)
+// Rate Limiter Global - Otimizado para monitoramento em tempo real
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Limite de 100 requisições por IP por janela
+  windowMs: 1 * 60 * 1000, // 1 minuto (janela menor para reset mais rápido)
+  max: 200, // 200 requisições por minuto (suficiente para monitoramento)
   standardHeaders: true, // Retorna informações de limite nos headers `RateLimit-*`
   legacyHeaders: false, // Desabilita os headers `X-RateLimit-*` (legado)
-  message: { success: false, error: 'Muitas requisições originadas deste IP, por favor, tente novamente mais tarde.' },
+  message: { success: false, error: 'Limite de requisições atingido. Aguarde alguns segundos.' },
   // Pode-se adicionar um handler para logar quando o limite é atingido
   handler: (req, res, next, options) => {
     const { getLogger } = require('./config/logger');

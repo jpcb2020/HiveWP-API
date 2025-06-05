@@ -188,8 +188,11 @@ async function loadMetrics() {
         // Update system status
         const systemStatusEl = document.getElementById('system-status');
         const statusIndicator = document.querySelector('.status-indicator');
-        if (systemStatusEl) systemStatusEl.textContent = 'System Online';
+        if (systemStatusEl) systemStatusEl.textContent = 'Sistema Online';
         if (statusIndicator) statusIndicator.className = 'status-indicator status-online';
+        
+        // Update summary cards
+        updateSummaryCards(metrics);
         
         console.log('✅ Métricas atualizadas com sucesso!');
         
@@ -203,6 +206,145 @@ async function loadMetrics() {
     
     if (refreshBtn) {
         refreshBtn.classList.remove('spinning');
+    }
+}
+
+// Function to update summary cards
+function updateSummaryCards(metrics) {
+    // System Summary
+    const systemUptimeSummary = document.getElementById('system-uptime-summary');
+    if (systemUptimeSummary) {
+        systemUptimeSummary.textContent = formatUptime(metrics.system.uptime);
+    }
+    
+    // Instances Summary
+    const instancesSummaryValue = document.getElementById('instances-summary-value');
+    const instancesSummary = document.getElementById('instances-summary');
+    if (instancesSummaryValue && instancesSummary) {
+        const connected = metrics.instances.connected;
+        const total = metrics.instances.total;
+        instancesSummaryValue.textContent = `${connected}/${total} Conectadas`;
+        
+        // Update status
+        if (connected === 0) {
+            instancesSummary.className = 'summary-card warning';
+        } else if (connected === total) {
+            instancesSummary.className = 'summary-card good';
+        } else {
+            instancesSummary.className = 'summary-card';
+        }
+    }
+    
+    // Performance Summary
+    const performanceSummaryValue = document.getElementById('performance-summary-value');
+    const performanceSummary = document.getElementById('performance-summary');
+    if (performanceSummaryValue && performanceSummary) {
+        const responseTime = metrics.performance.avgResponseTime;
+        if (responseTime < 50) {
+            performanceSummaryValue.textContent = 'Excelente';
+            performanceSummary.className = 'summary-card good';
+        } else if (responseTime < 200) {
+            performanceSummaryValue.textContent = 'Boa';
+            performanceSummary.className = 'summary-card';
+        } else {
+            performanceSummaryValue.textContent = 'Lenta';
+            performanceSummary.className = 'summary-card warning';
+        }
+    }
+    
+    // Workers Summary
+    const workersSummaryValue = document.getElementById('workers-summary-value');
+    const workersSummary = document.getElementById('workers-summary');
+    if (workersSummaryValue && workersSummary) {
+        if (metrics.webhook.processing) {
+            workersSummaryValue.textContent = 'Ativos';
+            workersSummary.className = 'summary-card good';
+        } else {
+            workersSummaryValue.textContent = 'Inativos';
+            workersSummary.className = 'summary-card error';
+        }
+    }
+    
+    // Update status badges and colors
+    updateStatusBadges(metrics);
+}
+
+// Function to update status badges and visual indicators
+function updateStatusBadges(metrics) {
+    // Memory status
+    const memoryStatusEl = document.getElementById('memory-status');
+    if (memoryStatusEl && metrics.performance.memory) {
+        const memoryPercent = (metrics.performance.memory.heapUsed / metrics.performance.memory.heapTotal) * 100;
+        if (memoryPercent < 70) {
+            memoryStatusEl.textContent = 'Normal';
+            memoryStatusEl.className = 'metric-status good';
+        } else if (memoryPercent < 85) {
+            memoryStatusEl.textContent = 'Atenção';
+            memoryStatusEl.className = 'metric-status warning';
+        } else {
+            memoryStatusEl.textContent = 'Alto';
+            memoryStatusEl.className = 'metric-status error';
+        }
+    }
+    
+    // Speed status
+    const speedStatusEl = document.getElementById('speed-status');
+    const performanceRatingEl = document.getElementById('performance-rating');
+    if (speedStatusEl && performanceRatingEl) {
+        const responseTime = metrics.performance.avgResponseTime;
+        if (responseTime < 50) {
+            speedStatusEl.textContent = 'Muito Rápido';
+            speedStatusEl.className = 'metric-status good';
+            performanceRatingEl.textContent = 'Excelente';
+        } else if (responseTime < 200) {
+            speedStatusEl.textContent = 'Rápido';
+            speedStatusEl.className = 'metric-status good';
+            performanceRatingEl.textContent = 'Boa';
+        } else if (responseTime < 500) {
+            speedStatusEl.textContent = 'Normal';
+            speedStatusEl.className = 'metric-status warning';
+            performanceRatingEl.textContent = 'Regular';
+        } else {
+            speedStatusEl.textContent = 'Lento';
+            speedStatusEl.className = 'metric-status error';
+            performanceRatingEl.textContent = 'Precisa melhorar';
+        }
+    }
+    
+    // Instances status
+    const instancesStatusEl = document.getElementById('instances-status');
+    if (instancesStatusEl) {
+        const connected = metrics.instances.connected;
+        const total = metrics.instances.total;
+        if (total === 0) {
+            instancesStatusEl.textContent = 'Nenhuma';
+            instancesStatusEl.className = 'metric-status';
+        } else if (connected === 0) {
+            instancesStatusEl.textContent = 'Desconectadas';
+            instancesStatusEl.className = 'metric-status warning';
+        } else if (connected === total) {
+            instancesStatusEl.textContent = 'Todas Online';
+            instancesStatusEl.className = 'metric-status good';
+        } else {
+            instancesStatusEl.textContent = 'Parcial';
+            instancesStatusEl.className = 'metric-status warning';
+        }
+    }
+    
+    // Webhook error status
+    const webhookErrorStatusEl = document.getElementById('webhook-error-status');
+    if (webhookErrorStatusEl) {
+        const failed = metrics.webhook.failed;
+        if (failed === 0) {
+            webhookErrorStatusEl.textContent = 'Sem Falhas';
+            webhookErrorStatusEl.className = 'metric-status good';
+        } else if (failed < 5) {
+            webhookErrorStatusEl.textContent = 'Poucas';
+            webhookErrorStatusEl.className = 'metric-status warning';
+        } else {
+            webhookErrorStatusEl.textContent = 'Muitas';
+            webhookErrorStatusEl.className = 'metric-status error';
+        }
     }
 }
 
