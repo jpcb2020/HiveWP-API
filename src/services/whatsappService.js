@@ -12,6 +12,8 @@ const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode');
+const { cache } = require('./cacheService');
+const { webhookQueue } = require('./webhookQueue');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
@@ -379,7 +381,13 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
       // Quando o QR Code estiver disponível
       if (qr) {
         instances[clientId].qrText = qr;
+        instances[clientId].qrTimestamp = Date.now(); // Timestamp para invalidar cache
         console.log(`[${clientId}] QR Code gerado. Escaneie para se conectar.`);
+        
+        // Invalidar cache de QR code quando um novo é gerado
+        if (cache && cache.invalidateQRCode) {
+          cache.invalidateQRCode(clientId);
+        }
         
         // Atualizar status nos metadados
         saveInstanceMetadata(clientId, {
@@ -614,20 +622,19 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
           simplifiedMessage.targetMessageId = message.message.reactionMessage.key.id;
         }
         
-        // Enviar para webhook, se configurado
+        // Enviar para webhook, se configurado (usando queue para performance)
         if (instances[clientId].webhookUrl) {
-          try {
-            const webhookData = {
-              clientId,
-              timestamp: new Date().toISOString(),
-              message: simplifiedMessage,
-              originalMessage: message // Opcional: mantém a mensagem original para casos específicos
-            };
-            
-            console.log(`[${clientId}] Enviando mensagem para webhook: ${instances[clientId].webhookUrl}`);
-            await sendToWebhook(instances[clientId].webhookUrl, webhookData);
-          } catch (webhookError) {
-            console.error(`[${clientId}] Erro ao enviar para webhook:`, webhookError);
+          const webhookData = {
+            clientId,
+            timestamp: new Date().toISOString(),
+            message: simplifiedMessage,
+            originalMessage: message // Opcional: mantém a mensagem original para casos específicos
+          };
+          
+          // Usar queue assíncrona ao invés de await para não bloquear
+          const queued = webhookQueue.enqueue(instances[clientId].webhookUrl, webhookData, clientId);
+          if (!queued) {
+            console.warn(`[${clientId}] Webhook queue cheia, mensagem descartada`);
           }
         }
         
@@ -729,13 +736,11 @@ const checkNumberExists = async (clientId = 'default', phoneNumber) => {
     // Formatar o número (ultra-rápido)
     const jid = formatPhoneNumber(phoneNumber);
     
-    // Verificar cache primeiro (look-up O(1) - extremamente rápido)
-    const cacheKey = `${clientId}:${jid}`;
-    const cachedResult = numberVerificationCache.get(cacheKey);
-    
-    if (cachedResult && (Date.now() - cachedResult.timestamp < CACHE_EXPIRATION)) {
+    // Verificar cache otimizado primeiro
+    const cachedResult = cache.getNumberValidation(clientId, jid);
+    if (cachedResult) {
       // Cache hit - retorno instantâneo
-      return cachedResult.result;
+      return cachedResult;
     }
     
     // Cache miss - fazer a verificação real
@@ -746,14 +751,8 @@ const checkNumberExists = async (clientId = 'default', phoneNumber) => {
       ? { success: true, exists: true, phoneNumber: jid, jid: result.jid }
       : { success: true, exists: false, phoneNumber: jid };
     
-    // Armazenar no cache
-    numberVerificationCache.set(cacheKey, {
-      result: verificationResult,
-      timestamp: Date.now()
-    });
-    
-    // Limpar cache se necessário
-    cleanExpiredCacheEntries();
+    // Armazenar no cache otimizado
+    cache.setNumberValidation(clientId, jid, verificationResult);
     
     return verificationResult;
   } catch (error) {
@@ -1098,14 +1097,16 @@ const getQrCode = async (clientId = 'default') => {
       };
     }
     
-    // Gerar QR Code como base64
+    // Gerar QR Code como base64 (sempre fresh, sem cache)
     const qrBase64 = await qrcode.toDataURL(instances[clientId].qrText);
     
     return {
       success: true,
       qrCode: qrBase64,
       status: instances[clientId].connectionStatus,
-      clientId
+      clientId,
+      timestamp: instances[clientId].qrTimestamp || Date.now(),
+      isConnected: instances[clientId].isConnected || false
     };
   } catch (error) {
     console.error(`[${clientId}] Erro ao gerar QR Code:`, error);

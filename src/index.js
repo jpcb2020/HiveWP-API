@@ -21,6 +21,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const whatsappRoutes = require('./routes/whatsappRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const monitoringRoutes = require('./routes/monitoringRoutes');
 const whatsappService = require('./services/whatsappService');
 const authMiddleware = require('./middleware/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
@@ -61,6 +62,9 @@ app.use(requestLogger);
 
 // Rota de Health Check (não protegida por autenticação da API_KEY intencionalmente)
 app.use('/system', healthRoutes);
+
+// Rotas de monitoramento (algumas protegidas, outras não)
+app.use('/monitoring', monitoringRoutes);
 
 // Servir arquivos estáticos do frontend
 app.use(express.static(path.join(__dirname, '../frontend')));

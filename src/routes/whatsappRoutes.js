@@ -22,17 +22,26 @@ const router = express.Router();
 // Aplicar middleware de autenticação a todas as rotas
 router.use(authMiddleware);
 
-// Rate Limiter para rotas de envio de mensagens (ex: 30 requisições por minuto por IP)
+// Rate Limiter otimizado para múltiplas instâncias
+// Limites mais flexíveis baseados no número de instâncias suportadas
+
+// Rate Limiter para rotas de envio de mensagens (mais flexível para 100 instâncias)
 const messageLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 30, // Limite de 30 requisições de envio por IP por janela
+  max: 200, // Limite aumentado para 200 requisições por minuto por IP
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: 'Muitas tentativas de envio de mensagem. Por favor, aguarde um momento.' },
+  message: { success: false, error: 'Limite de envio de mensagens atingido. Aguarde um momento.' },
+  keyGenerator: (req) => {
+    // Usar combinação de IP + API Key para rate limiting mais granular
+    const apiKey = req.headers.authorization?.replace('Bearer ', '').substring(0, 8);
+    return `${req.ip}-${apiKey}`;
+  },
   handler: (req, res, next, options) => {
     const { getLogger } = require('../config/logger');
     const logger = getLogger('security');
-    logger.warn(`Rate limit de envio de mensagens excedido por IP: ${req.ip}`, {
+    logger.warn(`Rate limit de envio de mensagens excedido`, {
+        ip: req.ip,
         path: req.path,
         method: req.method,
         limit: options.max,
@@ -42,23 +51,45 @@ const messageLimiter = rateLimit({
   }
 });
 
-// Rotas para gerenciamento de instâncias
-router.get('/instances', whatsappController.getInstances);
-router.post('/instance/init', validate(initInstanceSchema), whatsappController.initInstance);
-router.post('/instance/delete', validate(deleteInstanceSchema), whatsappController.deleteInstance);
-router.post('/instance/config', validate(updateConfigSchema), whatsappController.updateConfig);
+// Rate Limiter específico para operações de instância (mais restritivo)
+const instanceLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutos
+  max: 50, // 50 operações de instância por 5 minutos
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Limite de operações de instância atingido.' },
+  keyGenerator: (req) => {
+    const apiKey = req.headers.authorization?.replace('Bearer ', '').substring(0, 8);
+    return `inst-${req.ip}-${apiKey}`;
+  }
+});
 
-// Rota para verificação de números
-router.post('/check-number', validate(checkNumberSchema), whatsappController.checkNumberExists);
+// Rate Limiter para consultas (mais permissivo)
+const queryLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 500, // 500 consultas por minuto
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Limite de consultas atingido.' }
+});
 
-// Rotas para conexão e status
-router.get('/qr', validateQuery(qrCodeQuerySchema), whatsappController.getQrCode);
-router.get('/qr-image', validateQuery(qrCodeQuerySchema), whatsappController.getQrCodeImage); // Nova rota para obter a imagem diretamente
-router.get('/status', validateQuery(statusQuerySchema), whatsappController.getStatus);
-router.post('/restart', validate(optionalClientIdBodySchema), whatsappController.restartConnection);
-router.post('/logout', validate(optionalClientIdBodySchema), whatsappController.logout);
+// Rotas para gerenciamento de instâncias (com rate limiting específico)
+router.get('/instances', queryLimiter, whatsappController.getInstances);
+router.post('/instance/init', instanceLimiter, validate(initInstanceSchema), whatsappController.initInstance);
+router.post('/instance/delete', instanceLimiter, validate(deleteInstanceSchema), whatsappController.deleteInstance);
+router.post('/instance/config', instanceLimiter, validate(updateConfigSchema), whatsappController.updateConfig);
 
-// Rotas para envio de mensagens (com rate limiting específico e validação)
+// Rota para verificação de números (com cache otimizado)
+router.post('/check-number', queryLimiter, validate(checkNumberSchema), whatsappController.checkNumberExists);
+
+// Rotas para conexão e status (consultas frequentes)
+router.get('/qr', queryLimiter, validateQuery(qrCodeQuerySchema), whatsappController.getQrCode);
+router.get('/qr-image', queryLimiter, validateQuery(qrCodeQuerySchema), whatsappController.getQrCodeImage);
+router.get('/status', queryLimiter, validateQuery(statusQuerySchema), whatsappController.getStatus);
+router.post('/restart', instanceLimiter, validate(optionalClientIdBodySchema), whatsappController.restartConnection);
+router.post('/logout', instanceLimiter, validate(optionalClientIdBodySchema), whatsappController.logout);
+
+// Rotas para envio de mensagens (com rate limiting otimizado)
 router.post('/send/text', messageLimiter, validate(sendTextSchema), whatsappController.sendTextMessage);
 router.post('/send/media', messageLimiter, validate(sendMediaSchema), whatsappController.sendMediaMessage);
 router.post('/send/audio', messageLimiter, validate(sendAudioSchema), whatsappController.sendAudioMessage);
