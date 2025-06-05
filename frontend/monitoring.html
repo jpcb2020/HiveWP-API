@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiveWP - System Monitoring</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        .monitoring-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .monitoring-header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .monitoring-header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+        
+        .monitoring-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .metric-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .metric-subtitle {
+            color: #666;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background-color: #4CAF50; }
+        .status-warning { background-color: #FF9800; }
+        .status-error { background-color: #F44336; }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .queue-item:last-child {
+            border-bottom: none;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .refresh-btn:hover {
+            background: #5a67d8;
+            transform: scale(1.1);
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .auto-refresh label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .auto-refresh select {
+            padding: 5px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .last-update {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .back-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .metric-trend {
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        
+        .trend-up { color: #4CAF50; }
+        .trend-down { color: #F44336; }
+        .trend-stable { color: #666; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Voltar ao Dashboard
+    </a>
+    
+    <div class="monitoring-container">
+        <div class="monitoring-header">
+            <h1><i class="fas fa-chart-line"></i> System Monitoring</h1>
+            <p>Real-time monitoring of HiveWP API performance and metrics</p>
+            <div class="status-indicator status-online"></div>
+            <span id="system-status">System Online</span>
+        </div>
+
+        <div class="auto-refresh">
+            <label for="refresh-interval">
+                <i class="fas fa-sync-alt"></i> Auto Refresh:
+            </label>
+            <select id="refresh-interval">
+                <option value="0">Manual</option>
+                <option value="5000" selected>5 seconds</option>
+                <option value="10000">10 seconds</option>
+                <option value="30000">30 seconds</option>
+                <option value="60000">1 minute</option>
+            </select>
+            <span id="next-refresh" class="metric-subtitle"></span>
+        </div>
+
+        <!-- System Overview -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3><i class="fas fa-server"></i> System Health</h3>
+                <div class="metric-value" id="system-uptime">0s</div>
+                <div class="metric-subtitle">Uptime</div>
+                <div class="metric-subtitle">Node.js <span id="node-version">-</span></div>
+                <div class="metric-subtitle">PID: <span id="system-pid">-</span></div>
+            </div>
+
+            <div class="metric-card">
+                <h3><i class="fas fa-tachometer-alt"></i> Requests</h3>
+                <div class="metric-value" id="total-requests">0</div>
+                <div class="metric-subtitle">Total Requests</div>
+                <div class="metric-subtitle">Success: <span id="success-requests">0</span></div>
+                <div class="metric-subtitle">Errors: <span id="error-requests">0</span></div>
+                <div class="metric-subtitle">Rate: <span id="requests-per-minute">0</span>/min</div>
+            </div>
+
+            <div class="metric-card">
+                <h3><i class="fab fa-whatsapp"></i> WhatsApp Instances</h3>
+                <div class="metric-value" id="total-instances">0</div>
+                <div class="metric-subtitle">Total Instances</div>
+                <div class="metric-subtitle">Connected: <span id="connected-instances">0</span></div>
+                <div class="metric-subtitle">Disconnected: <span id="disconnected-instances">0</span></div>
+                <div class="metric-subtitle">Rate: <span id="connection-rate">0%</span></div>
+            </div>
+
+            <div class="metric-card">
+                <h3><i class="fas fa-clock"></i> Performance</h3>
+                <div class="metric-value" id="avg-response-time">0ms</div>
+                <div class="metric-subtitle">Avg Response Time</div>
+                <div class="metric-subtitle">Memory: <span id="memory-usage">0%</span></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memory-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook Queue System -->
+        <div class="chart-container">
+            <h3><i class="fas fa-tasks"></i> Webhook Queue System</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3><i class="fas fa-check-circle"></i> Processed</h3>
+                    <div class="metric-value" id="webhook-processed">0</div>
+                    <div class="metric-subtitle">Total Processed</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3><i class="fas fa-times-circle"></i> Failed</h3>
+                    <div class="metric-value" id="webhook-failed">0</div>
+                    <div class="metric-subtitle">Failed Requests</div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3><i class="fas fa-hourglass-half"></i> Queue</h3>
+                    <div class="metric-value" id="webhook-queued">0</div>
+                    <div class="metric-subtitle">In Queue</div>
+                    <div class="metric-subtitle">Active: <span id="webhook-active">0</span></div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3><i class="fas fa-cogs"></i> Workers</h3>
+                    <div class="metric-value" id="webhook-status">
+                        <span class="status-indicator status-online"></span>
+                        Active
+                    </div>
+                    <div class="metric-subtitle">Processing Status</div>
+                    <div class="metric-subtitle">Queue Size: <span id="queue-size">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cache Performance -->
+        <div class="chart-container">
+            <h3><i class="fas fa-database"></i> Cache Performance</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3><i class="fas fa-phone"></i> Number Cache</h3>
+                    <div class="metric-value" id="number-cache-hitrate">0%</div>
+                    <div class="metric-subtitle">Hit Rate</div>
+                    <div class="metric-subtitle">Size: <span id="number-cache-size">0</span> / <span id="number-cache-max">0</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="number-cache-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="metric-subtitle">Hits: <span id="number-cache-hits">0</span> | Misses: <span id="number-cache-misses">0</span></div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3><i class="fas fa-qrcode"></i> QR Cache</h3>
+                    <div class="metric-value" id="qr-cache-hitrate">0%</div>
+                    <div class="metric-subtitle">Hit Rate</div>
+                    <div class="metric-subtitle">Size: <span id="qr-cache-size">0</span> / <span id="qr-cache-max">0</span></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="qr-cache-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="metric-subtitle">Hits: <span id="qr-cache-hits">0</span> | Misses: <span id="qr-cache-misses">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Details -->
+        <div class="chart-container">
+            <h3><i class="fas fa-memory"></i> Memory Usage Details</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3><i class="fas fa-layer-group"></i> Heap Memory</h3>
+                    <div class="metric-value" id="heap-used">0MB</div>
+                    <div class="metric-subtitle">Used / <span id="heap-total">0MB</span> Total</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="heap-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3><i class="fas fa-chart-area"></i> RSS Memory</h3>
+                    <div class="metric-value" id="rss-memory">0MB</div>
+                    <div class="metric-subtitle">Resident Set Size</div>
+                    <div class="metric-subtitle">External: <span id="external-memory">0MB</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-update">
+            <i class="fas fa-clock"></i> Last updated: <span id="last-update-time">Never</span>
+        </div>
+    </div>
+
+    <button class="refresh-btn" id="refresh-btn">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+
+    <script src="assets/js/monitoring.js"></script>
+</body>
+</html> 

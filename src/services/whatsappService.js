@@ -1,6 +1,17 @@
 // Garantir que o polyfill de crypto foi carregado
 require('../utils/crypto-polyfill');
 
+// Carregar configurações de produção automaticamente se NODE_ENV=production
+let productionConfig = {};
+if (process.env.NODE_ENV === 'production') {
+  try {
+    productionConfig = require('../config/production');
+    console.log('📈 Configurações de produção carregadas - Sistema otimizado para 100+ instâncias');
+  } catch (error) {
+    console.warn('⚠️  Não foi possível carregar configurações de produção:', error.message);
+  }
+}
+
 const { default: makeWASocket, 
   DisconnectReason, 
   useMultiFileAuthState,
@@ -624,13 +635,13 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         
         // Enviar para webhook, se configurado (usando queue para performance)
         if (instances[clientId].webhookUrl) {
-          const webhookData = {
-            clientId,
-            timestamp: new Date().toISOString(),
-            message: simplifiedMessage,
-            originalMessage: message // Opcional: mantém a mensagem original para casos específicos
-          };
-          
+            const webhookData = {
+              clientId,
+              timestamp: new Date().toISOString(),
+              message: simplifiedMessage,
+              originalMessage: message // Opcional: mantém a mensagem original para casos específicos
+            };
+            
           // Usar queue assíncrona ao invés de await para não bloquear
           const queued = webhookQueue.enqueue(instances[clientId].webhookUrl, webhookData, clientId);
           if (!queued) {

@@ -97,6 +97,16 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   logger.info(`Servidor rodando na porta ${PORT}`);
   logger.info(`Frontend disponível em http://localhost:${PORT}`);
+  
+  // Mostrar informações sobre o modo de execução
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    logger.info('🚀 MODO PRODUÇÃO ATIVO - Todas as otimizações carregadas');
+    logger.info('📊 Suporte para 100+ instâncias WhatsApp simultâneas');
+    logger.info('⚡ Rate limits: 500 msg/min | Cache ativo | Webhook queue: 25 concurrent');
+  } else {
+    logger.info('🔧 MODO DESENVOLVIMENTO - Para ativar otimizações use: NODE_ENV=production npm start');
+  }
 });
 
 // Middleware de tratamento de erros (deve ser o último middleware)

@@ -72,8 +72,18 @@ function setupEventListeners() {
     // Navigation
     elements.navItems.forEach(item => {
         item.addEventListener('click', (e) => {
+            const link = e.currentTarget.querySelector('a');
+            const href = link.getAttribute('href');
+            
+            // Se for um link externo (como monitoring.html), não prevenir o comportamento padrão
+            if (href.includes('.html')) {
+                // Permitir navegação normal para páginas externas
+                return;
+            }
+            
+            // Para navegação interna, prevenir e usar SPA navigation
             e.preventDefault();
-            const target = e.currentTarget.querySelector('a').getAttribute('href').replace('#', '');
+            const target = href.replace('#', '');
             navigateTo(target);
         });
     });
