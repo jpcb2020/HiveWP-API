@@ -434,33 +434,11 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             lastDisconnection: new Date().toISOString()
           });
           
-          // Tentar reconectar se não for um logout, mas com backoff exponencial
+          // Verificar o motivo da desconexão
           const statusCode = lastDisconnect?.error?.output?.statusCode;
-          if (statusCode !== DisconnectReason.loggedOut) {
-            // Obter tentativas de reconexão atuais ou iniciar com 0
-            instances[clientId].reconnectAttempts = instances[clientId].reconnectAttempts || 0;
-            instances[clientId].reconnectAttempts++;
-            
-            // Cálculo de backoff exponencial: entre 3-10 segundos baseado no número de tentativas
-            // Limitado a no máximo 5 minutos entre tentativas
-            const delaySeconds = Math.min(300, Math.pow(1.5, Math.min(instances[clientId].reconnectAttempts, 10)) * 3);
-            
-            console.log(`[${clientId}] Reconectando em ${delaySeconds.toFixed(0)} segundos... (Tentativa ${instances[clientId].reconnectAttempts})`);
-            
-            // Salvar informações de reconexão nos metadados
-            saveInstanceMetadata(clientId, {
-              reconnectAttempts: instances[clientId].reconnectAttempts,
-              nextReconnectTime: new Date(Date.now() + delaySeconds * 1000).toISOString()
-            });
-            
-            // Agendar reconexão com atraso
-            setTimeout(() => {
-              // Verificar se a instância ainda existe e precisa reconectar
-              if (instances[clientId] && !instances[clientId].isConnected) {
-                initializeWhatsApp(clientId);
-              }
-            }, delaySeconds * 1000);
-          } else {
+          
+          // Se foi logout explícito, seguir fluxo normal de logout
+          if (statusCode === DisconnectReason.loggedOut) {
             console.log(`[${clientId}] Desconectado do WhatsApp (logout).`);
             
             // Salvar configurações atuais antes da limpeza
@@ -478,6 +456,7 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             });
             
             // Remover apenas os arquivos de credenciais, preservando metadados
+            const SESSION_PATH = path.join(SESSION_DIR, clientId);
             const credsPath = path.join(SESSION_PATH, 'creds.json');
             if (fs.existsSync(credsPath)) {
               console.log(`[${clientId}] Removendo apenas credenciais, preservando metadados.`);
@@ -486,10 +465,12 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             
             // Remover arquivos de chave para evitar problemas de autenticação
             const authFilesPattern = /auth|pre-key|session|sender|app-state/;
-            const files = fs.readdirSync(SESSION_PATH);
-            for (const file of files) {
-              if (authFilesPattern.test(file)) {
-                fs.unlinkSync(path.join(SESSION_PATH, file));
+            if (fs.existsSync(SESSION_PATH)) {
+              const files = fs.readdirSync(SESSION_PATH);
+              for (const file of files) {
+                if (authFilesPattern.test(file)) {
+                  fs.unlinkSync(path.join(SESSION_PATH, file));
+                }
               }
             }
             
@@ -505,6 +486,77 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
                 console.error(`[${clientId}] Erro ao reinicializar após logout automático:`, error);
               }
             }, 2000); // Aguardar 2 segundos antes de reinicializar
+          } 
+          
+          // Para outros tipos de desconexão (incluindo QR code expirado)
+          else {
+            // Salvar configurações atuais para manter após reinicialização
+            const currentConfig = {
+              ignoreGroups: instances[clientId].ignoreGroups,
+              webhookUrl: instances[clientId].webhookUrl,
+              proxyUrl: instances[clientId].proxyUrl
+            };
+            
+            // Verificar se não estava conectado (indicativo de QR code expirado ou problemas de conexão)
+            const wasNotConnected = !instances[clientId].isConnected;
+            
+            // Se não estava conectado, é provável que seja QR code expirado - reinicializar imediatamente
+            if (wasNotConnected) {
+              console.log(`[${clientId}] QR Code provavelmente expirado. Gerando novo QR code automaticamente...`);
+              
+              // Atualizar status nos metadados
+              saveInstanceMetadata(clientId, {
+                status: 'qr_expired',
+                qrExpiredTime: new Date().toISOString(),
+                autoReinitializing: true
+              });
+              
+              // Reinicializar imediatamente para gerar novo QR code
+              setTimeout(async () => {
+                try {
+                  if (instances[clientId]) {
+                    console.log(`[${clientId}] Reinicializando para gerar novo QR code...`);
+                    await initializeWhatsApp(clientId, currentConfig);
+                    console.log(`[${clientId}] ✅ Novo QR code gerado com sucesso!`);
+                  }
+                } catch (error) {
+                  console.error(`[${clientId}] Erro ao gerar novo QR code:`, error);
+                }
+              }, 1000); // Aguardar apenas 1 segundo antes de reinicializar
+            } 
+            
+            // Se estava conectado, usar backoff exponencial para reconectar
+            else {
+              console.log(`[${clientId}] Conexão perdida. Tentando reconectar...`);
+              
+              // Obter tentativas de reconexão atuais ou iniciar com 0
+              instances[clientId].reconnectAttempts = instances[clientId].reconnectAttempts || 0;
+              instances[clientId].reconnectAttempts++;
+              
+              // Cálculo de backoff exponencial: entre 3-10 segundos baseado no número de tentativas
+              // Limitado a no máximo 5 minutos entre tentativas
+              const delaySeconds = Math.min(300, Math.pow(1.5, Math.min(instances[clientId].reconnectAttempts, 10)) * 3);
+              
+              console.log(`[${clientId}] Reconectando em ${delaySeconds.toFixed(0)} segundos... (Tentativa ${instances[clientId].reconnectAttempts})`);
+              
+              // Salvar informações de reconexão nos metadados
+              saveInstanceMetadata(clientId, {
+                reconnectAttempts: instances[clientId].reconnectAttempts,
+                nextReconnectTime: new Date(Date.now() + delaySeconds * 1000).toISOString()
+              });
+              
+              // Agendar reconexão com atraso
+              setTimeout(async () => {
+                // Verificar se a instância ainda existe e precisa reconectar
+                if (instances[clientId] && !instances[clientId].isConnected) {
+                  try {
+                    await initializeWhatsApp(clientId, currentConfig);
+                  } catch (error) {
+                    console.error(`[${clientId}] Erro na tentativa de reconexão:`, error);
+                  }
+                }
+              }, delaySeconds * 1000);
+            }
           }
         }
       }
@@ -1102,6 +1154,16 @@ const sendAudioMessage = async (clientId = 'default', phoneNumber, audioUrl, cap
 const getQrCode = async (clientId = 'default') => {
   try {
     if (!instances[clientId] || !instances[clientId].qrText) {
+      // Verificar se a instância existe mas não tem QR code (pode estar reconectando)
+      if (instances[clientId] && instances[clientId].connectionStatus === 'close') {
+        return {
+          success: false,
+          error: `QR Code expirado. Sistema gerando novo QR code automaticamente...`,
+          status: 'auto_generating',
+          autoRenewing: true
+        };
+      }
+      
       return {
         success: false,
         error: `QR Code para o cliente ${clientId} não disponível no momento`
@@ -1111,13 +1173,18 @@ const getQrCode = async (clientId = 'default') => {
     // Gerar QR Code como base64 (sempre fresh, sem cache)
     const qrBase64 = await qrcode.toDataURL(instances[clientId].qrText);
     
+    // Verificar se o QR code foi recentemente renovado automaticamente
+    const metadata = readInstanceMetadata(clientId);
+    const wasAutoRenewed = metadata.status === 'qr_expired' && metadata.autoReinitializing;
+    
     return {
       success: true,
       qrCode: qrBase64,
       status: instances[clientId].connectionStatus,
       clientId,
       timestamp: instances[clientId].qrTimestamp || Date.now(),
-      isConnected: instances[clientId].isConnected || false
+      isConnected: instances[clientId].isConnected || false,
+      autoRenewed: wasAutoRenewed || false
     };
   } catch (error) {
     console.error(`[${clientId}] Erro ao gerar QR Code:`, error);
