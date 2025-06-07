@@ -415,13 +415,19 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
         // Se estiver conectado
         if (connection === 'open') {
           instances[clientId].isConnected = true;
-          console.log(`[${clientId}] Conectado com sucesso ao WhatsApp!`);
           
-          // Atualizar status nos metadados
+          // Resetar tentativas de reconexão
+          instances[clientId].reconnectAttempts = 0;
+          
+          console.log(`[${clientId}] 🎉 Conectado com sucesso ao WhatsApp!`);
+          
+          // Atualizar status nos metadados com força para notificar mudança imediata
           saveInstanceMetadata(clientId, {
             status: 'connected',
-            lastConnection: new Date().toISOString()
-          });
+            lastConnection: new Date().toISOString(),
+            connectionEstablished: true,
+            autoReinitializing: false // Limpar flag de auto-reinicialização
+          }, true); // Forçar salvamento imediato
         }
         
         // Se desconectado
@@ -466,10 +472,10 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             // Remover arquivos de chave para evitar problemas de autenticação
             const authFilesPattern = /auth|pre-key|session|sender|app-state/;
             if (fs.existsSync(SESSION_PATH)) {
-              const files = fs.readdirSync(SESSION_PATH);
-              for (const file of files) {
-                if (authFilesPattern.test(file)) {
-                  fs.unlinkSync(path.join(SESSION_PATH, file));
+            const files = fs.readdirSync(SESSION_PATH);
+            for (const file of files) {
+              if (authFilesPattern.test(file)) {
+                fs.unlinkSync(path.join(SESSION_PATH, file));
                 }
               }
             }
@@ -486,7 +492,7 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
                 console.error(`[${clientId}] Erro ao reinicializar após logout automático:`, error);
               }
             }, 2000); // Aguardar 2 segundos antes de reinicializar
-          } 
+          }
           
           // Para outros tipos de desconexão (incluindo QR code expirado)
           else {
@@ -1207,11 +1213,18 @@ const getConnectionStatus = (clientId = 'default') => {
     };
   }
   
+  // Ler metadados para incluir informações adicionais
+  const metadata = readInstanceMetadata(clientId);
+  
   return {
     success: true,
     connected: instances[clientId].isConnected,
     status: instances[clientId].connectionStatus,
-    clientId
+    clientId,
+    lastStatusChange: metadata.lastConnection || metadata.lastDisconnection || metadata.lastQRTimestamp,
+    qrTimestamp: instances[clientId].qrTimestamp,
+    hasQrCode: !!instances[clientId].qrText,
+    autoRenewed: metadata.status === 'qr_expired' && metadata.autoReinitializing
   };
 };
 

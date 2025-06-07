@@ -49,7 +49,10 @@ const apiUrl = localStorage.getItem('apiUrl') || 'http://localhost:3000';
 const state = {
     instance: null,
     qrCodeCheckInterval: null,
-    statusCheckInterval: null
+    statusCheckInterval: null,
+    fastPollingMode: false,
+    lastQrTimestamp: null,
+    connectionCheckInterval: null
 };
 
 // Get API authentication header
@@ -163,8 +166,8 @@ async function initPage() {
     // Start data loading
     await loadInstanceData();
     
-    // Set up periodic status check
-    state.statusCheckInterval = setInterval(checkInstanceStatus, 10000); // Check every 10 seconds
+    // Note: Periodic status check will be started by startAdaptivePolling() if needed
+    // No interval setup here to avoid conflicts with adaptive polling
     
     // Debug: Test button functionality
     console.log('Page initialization completed. Testing button functionality...');
@@ -265,17 +268,12 @@ function updateInstanceData(data) {
         elements.qrContainer.style.display = 'flex';
         fetchQrCode();
         
-        // Start QR code refresh interval if not connected
-        if (!state.qrCodeCheckInterval) {
-            state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000); // Refresh QR every 20 seconds
-        }
+        // Start adaptive polling for QR code and connection status
+        startAdaptivePolling();
     } else {
         elements.qrContainer.style.display = 'none';
-        // Clear QR check interval if connected
-        if (state.qrCodeCheckInterval) {
-            clearInterval(state.qrCodeCheckInterval);
-            state.qrCodeCheckInterval = null;
-        }
+        // Clear all intervals when connected
+        stopAllPolling();
     }
     
     // Update last updated time
@@ -318,6 +316,22 @@ async function fetchQrCode() {
                     style="max-width: 250px; height: auto;"
                 >
             `;
+            
+            // Verificar se é um novo QR code (timestamp mudou)
+            if (result.timestamp && result.timestamp !== state.lastQrTimestamp) {
+                state.lastQrTimestamp = result.timestamp;
+                
+                // Se QR foi renovado automaticamente, mostrar notificação
+                if (result.autoRenewed) {
+                    showAlert('QR Code Renovado', '✅ Novo QR code gerado automaticamente!', 'success');
+                    addLogEntry('QR code renovado automaticamente pelo sistema');
+                }
+                
+                // Ativar polling rápido para detectar scan rapidamente
+                enableFastPolling();
+                console.log('🚀 Fast polling ativado - verificando conexão a cada 2 segundos');
+            }
+            
             return;
         }
         
@@ -348,6 +362,8 @@ async function fetchQrCode() {
         `;
     }
 }
+
+
 
 // Check instance status
 async function checkInstanceStatus() {
@@ -409,12 +425,11 @@ async function reconnectInstance() {
             elements.qrCodePlaceholder.innerHTML = '<p>Generating new QR code...</p>';
             
             // Wait a moment and fetch the QR code
-            setTimeout(fetchQrCode, 3000);
-            
-            // Start QR code refresh interval if not already running
-            if (!state.qrCodeCheckInterval) {
-                state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000);
-            }
+            setTimeout(() => {
+                fetchQrCode();
+                // Ativar fast polling para detectar conexão rapidamente
+                enableFastPolling();
+            }, 3000);
         } else {
             showAlert('Error', data.error || 'Failed to reconnect instance', 'error');
         }
@@ -468,17 +483,9 @@ async function logoutInstance() {
             // Wait a bit longer for the new connection to initialize and generate QR
             setTimeout(() => {
                 loadInstanceData();
+                // Ativar fast polling após logout para detectar novo QR rapidamente
+                enableFastPolling();
             }, 3000); // Aumentado para 3 segundos
-            
-            // Also start checking for status changes more frequently
-            const quickCheckInterval = setInterval(() => {
-                checkInstanceStatus();
-            }, 2000);
-            
-            // Stop the quick checking after 30 seconds
-            setTimeout(() => {
-                clearInterval(quickCheckInterval);
-            }, 30000);
             
         } else {
             showAlert('Error', data.error || 'Failed to logout instance');
@@ -874,12 +881,129 @@ function showConfirm(message, title = 'Confirmação', onConfirm = null, onCance
     });
 }
 
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
+// ===== SISTEMA DE POLLING ADAPTATIVO =====
+
+/**
+ * Inicia o sistema de polling adaptativo
+ * - Polling normal: QR code a cada 20s, status a cada 15s
+ * - Fast polling: Conexão a cada 2s quando QR é mostrado/renovado
+ */
+function startAdaptivePolling() {
+    // Parar polling anterior se existir
+    stopAllPolling();
+    
+    // Polling normal para QR code (20 segundos)
+    if (!state.qrCodeCheckInterval) {
+        state.qrCodeCheckInterval = setInterval(fetchQrCode, 20000);
+        console.log('📡 Polling normal do QR code iniciado (20s)');
+    }
+    
+    // Polling normal para status (15 segundos)
+    if (!state.statusCheckInterval) {
+        state.statusCheckInterval = setInterval(checkInstanceStatus, 15000);
+        console.log('📡 Polling normal do status iniciado (15s)');
+    }
+}
+
+/**
+ * Ativa o modo de polling rápido para detectar conexão rapidamente
+ * Usado quando um novo QR code é exibido
+ */
+function enableFastPolling() {
+    // Se já está em fast polling, não fazer nada
+    if (state.fastPollingMode) return;
+    
+    state.fastPollingMode = true;
+    
+    // Polling rápido para detectar conexão (2 segundos)
+    state.connectionCheckInterval = setInterval(() => {
+        checkInstanceConnectionFast();
+    }, 2000);
+    
+    console.log('⚡ Fast polling ativado - checando conexão a cada 2s');
+    
+    // Desativar fast polling após 2 minutos (timeout de QR code típico)
+    setTimeout(() => {
+        disableFastPolling();
+    }, 120000); // 2 minutos
+}
+
+/**
+ * Desativa o modo de polling rápido
+ */
+function disableFastPolling() {
+    if (!state.fastPollingMode) return;
+    
+    state.fastPollingMode = false;
+    
+    if (state.connectionCheckInterval) {
+        clearInterval(state.connectionCheckInterval);
+        state.connectionCheckInterval = null;
+    }
+    
+    console.log('🐌 Fast polling desativado - voltando ao polling normal');
+}
+
+/**
+ * Verifica conexão de forma rápida (otimizada para fast polling)
+ */
+async function checkInstanceConnectionFast() {
+    try {
+        const timestamp = Date.now();
+        const response = await fetch(`${apiUrl}/api/whatsapp/status?clientId=${clientId}&t=${timestamp}`, {
+            headers: getAuthHeader()
+        });
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        if (data.success && data.connected) {
+            // Conexão estabelecida! Usuário escaneou o QR code
+            console.log('🎉 Conexão detectada via fast polling!');
+            
+            // Desativar fast polling imediatamente
+            disableFastPolling();
+            
+            // Mostrar feedback imediato
+            showAlert('Conectado!', '🎉 WhatsApp conectado com sucesso!', 'success');
+            addLogEntry('Conectado ao WhatsApp via QR code');
+            
+            // Atualizar interface imediatamente
+            await loadInstanceData();
+            
+            // Parar todo o polling (será reconectado se necessário)
+            stopAllPolling();
+        }
+    } catch (error) {
+        console.error('Erro no fast polling:', error);
+    }
+}
+
+/**
+ * Para todo o polling
+ */
+function stopAllPolling() {
+    // Parar polling normal
     if (state.qrCodeCheckInterval) {
         clearInterval(state.qrCodeCheckInterval);
+        state.qrCodeCheckInterval = null;
     }
+    
     if (state.statusCheckInterval) {
         clearInterval(state.statusCheckInterval);
+        state.statusCheckInterval = null;
     }
+    
+    // Parar fast polling
+    disableFastPolling();
+    
+    console.log('⏹️ Todo o polling foi parado');
+}
+
+// ===== FIM DO SISTEMA DE POLLING ADAPTATIVO =====
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    stopAllPolling();
 });
