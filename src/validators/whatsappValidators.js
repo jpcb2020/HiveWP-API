@@ -17,10 +17,10 @@ const validate = (schema) => (req, res, next) => {
 
 // Esquemas de validação
 const initInstanceSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).required()
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).required()
     .messages({
       'string.base': 'clientId deve ser uma string',
-      'string.alphanum': 'clientId deve conter apenas caracteres alfanuméricos',
+      'string.pattern.base': 'clientId deve conter apenas letras, números e os caracteres: @ . _ -',
       'string.min': 'clientId deve ter no mínimo {#limit} caracteres',
       'string.max': 'clientId deve ter no máximo {#limit} caracteres',
       'any.required': 'clientId é obrigatório'
@@ -37,10 +37,10 @@ const initInstanceSchema = Joi.object({
 });
 
 const deleteInstanceSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).required()
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).required()
     .messages({
       'string.base': 'clientId deve ser uma string',
-      'string.alphanum': 'clientId deve conter apenas caracteres alfanuméricos',
+      'string.pattern.base': 'clientId deve conter apenas letras, números e os caracteres: @ . _ -',
       'string.min': 'clientId deve ter no mínimo {#limit} caracteres',
       'string.max': 'clientId deve ter no máximo {#limit} caracteres',
       'any.required': 'clientId é obrigatório'
@@ -48,8 +48,9 @@ const deleteInstanceSchema = Joi.object({
 });
 
 const updateConfigSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).required()
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).required()
     .messages({
+        'string.pattern.base': 'clientId deve conter apenas letras, números e os caracteres: @ . _ -',
         'any.required': 'clientId é obrigatório'
     }),
   ignoreGroups: Joi.boolean().optional(),
@@ -64,7 +65,7 @@ const updateConfigSchema = Joi.object({
 });
 
 const checkNumberSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).optional(),
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional(),
   phoneNumber: Joi.string().pattern(/^\d+$/).min(10).max(15).required()
     .messages({
       'string.pattern.base': 'phoneNumber deve conter apenas dígitos',
@@ -75,7 +76,7 @@ const checkNumberSchema = Joi.object({
 });
 
 const sendTextSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).optional(),
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional(),
   phoneNumber: Joi.string().pattern(/^\d+$/).min(10).max(15).required()
     .messages({
       'string.pattern.base': 'phoneNumber deve conter apenas dígitos',
@@ -92,7 +93,7 @@ const sendTextSchema = Joi.object({
 });
 
 const sendMediaSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).optional(),
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional(),
   phoneNumber: Joi.string().pattern(/^\d+$/).min(10).max(15).required()
     .messages({
         'string.pattern.base': 'phoneNumber deve conter apenas dígitos',
@@ -112,7 +113,7 @@ const sendMediaSchema = Joi.object({
 });
 
 const sendAudioSchema = Joi.object({
-  clientId: Joi.string().alphanum().min(3).max(30).optional(),
+  clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional(),
   phoneNumber: Joi.string().pattern(/^\d+$/).min(10).max(15).required()
     .messages({
         'string.pattern.base': 'phoneNumber deve conter apenas dígitos',
@@ -132,15 +133,15 @@ const sendAudioSchema = Joi.object({
 
 // Schemas para validação de query params
 const qrCodeQuerySchema = Joi.object({
-    clientId: Joi.string().alphanum().min(3).max(30).optional()
+    clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional()
 });
 
 const statusQuerySchema = Joi.object({
-    clientId: Joi.string().alphanum().min(3).max(30).optional()
+    clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional()
 });
 
 const optionalClientIdBodySchema = Joi.object({
-    clientId: Joi.string().alphanum().min(3).max(30).optional()
+    clientId: Joi.string().pattern(/^[a-zA-Z0-9@._-]+$/).min(3).max(50).optional()
 });
 
 // Middleware para validação de query params
