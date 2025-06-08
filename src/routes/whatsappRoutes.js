@@ -1,6 +1,7 @@
 const express = require('express');
 const whatsappController = require('../controllers/whatsappController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { logInstanceOperations, validateInstanceExists } = require('../middleware/instanceProtection');
 const rateLimit = require('express-rate-limit');
 const {
   validate,
@@ -21,6 +22,10 @@ const router = express.Router();
 
 // Aplicar middleware de autenticação a todas as rotas
 router.use(authMiddleware);
+
+// Aplicar middleware de proteção de instâncias
+router.use(logInstanceOperations);
+router.use(validateInstanceExists);
 
 // Rate Limiter otimizado para múltiplas instâncias
 // Limites mais flexíveis baseados no número de instâncias suportadas

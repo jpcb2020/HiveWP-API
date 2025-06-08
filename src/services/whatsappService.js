@@ -31,6 +31,9 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 // Objeto para armazenar múltiplas instâncias
 const instances = {};
 
+// NOVA: Map para controlar inicializações em andamento (proteção contra race conditions)
+const initializationInProgress = new Map();
+
 // Diretório para armazenar as sessões
 const SESSION_DIR = process.env.SESSION_DIR || './sessions';
 
@@ -283,7 +286,32 @@ const getActiveInstances = () => {
  * @param {object} options - Opções de configuração adicionais
  */
 const initializeWhatsApp = async (clientId = 'default', options = {}) => {
+  // PROTEÇÃO CONTRA RACE CONDITIONS: Verificar se já há uma inicialização em andamento
+  if (initializationInProgress.get(clientId)) {
+    console.log(`[${clientId}] ⏳ Inicialização já em andamento, aguardando...`);
+    return initializationInProgress.get(clientId);
+  }
+
+  // Criar uma Promise para esta inicialização
+  const initPromise = initializeWhatsAppInternal(clientId, options);
+  initializationInProgress.set(clientId, initPromise);
+
   try {
+    const result = await initPromise;
+    return result;
+  } finally {
+    // Limpar flag de inicialização quando terminar (sucesso ou erro)
+    initializationInProgress.delete(clientId);
+  }
+};
+
+/**
+ * Função interna de inicialização (protegida contra race conditions)
+ */
+const initializeWhatsAppInternal = async (clientId = 'default', options = {}) => {
+  try {
+    console.log(`[${clientId}] 🚀 Iniciando inicialização da instância...`);
+    
     // Criar diretório específico para o cliente se não existir
     const SESSION_PATH = path.join(SESSION_DIR, clientId);
     if (!fs.existsSync(SESSION_PATH)) {
@@ -461,37 +489,50 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
               logoutType: 'automatic'
             });
             
-            // Remover apenas os arquivos de credenciais, preservando metadados
+            // CORREÇÃO: Limpeza mais conservadora de arquivos
             const SESSION_PATH = path.join(SESSION_DIR, clientId);
-            const credsPath = path.join(SESSION_PATH, 'creds.json');
-            if (fs.existsSync(credsPath)) {
-              console.log(`[${clientId}] Removendo apenas credenciais, preservando metadados.`);
-              fs.unlinkSync(credsPath);
-            }
-            
-            // Remover arquivos de chave para evitar problemas de autenticação
-            const authFilesPattern = /auth|pre-key|session|sender|app-state/;
-            if (fs.existsSync(SESSION_PATH)) {
-            const files = fs.readdirSync(SESSION_PATH);
-            for (const file of files) {
-              if (authFilesPattern.test(file)) {
-                fs.unlinkSync(path.join(SESSION_PATH, file));
+            try {
+              // Remover apenas os arquivos críticos de autenticação
+              const filesToRemove = ['creds.json'];
+              
+              filesToRemove.forEach(file => {
+                const filePath = path.join(SESSION_PATH, file);
+                if (fs.existsSync(filePath)) {
+                  console.log(`[${clientId}] Removendo arquivo: ${file}`);
+                  fs.unlinkSync(filePath);
                 }
-              }
+              });
+              
+              console.log(`[${clientId}] Limpeza conservadora de arquivos concluída`);
+            } catch (cleanupError) {
+              console.error(`[${clientId}] Erro na limpeza de arquivos:`, cleanupError);
             }
             
-            // Reinicializar automaticamente após logout para gerar novo QR code
-            console.log(`[${clientId}] Reinicializando conexão automaticamente após logout...`);
+            // CORREÇÃO: Reinicialização mais segura e controlada
+            console.log(`[${clientId}] Programando reinicialização após logout...`);
+            
+            // Resetar o socket para evitar referências antigas
+            instances[clientId].sock = null;
+            instances[clientId].isConnected = false;
+            instances[clientId].connectionStatus = 'disconnected';
+            instances[clientId].qrText = '';
+            
+            // Aguardar um pouco mais e verificar se a instância ainda existe antes de reinicializar
             setTimeout(async () => {
               try {
-                if (instances[clientId]) {
+                // Verificar se a instância ainda existe e não foi removida pelo usuário
+                if (instances[clientId] && !instances[clientId].sock) {
+                  console.log(`[${clientId}] Reinicializando após logout...`);
                   await initializeWhatsApp(clientId, currentConfig);
-                  console.log(`[${clientId}] Nova conexão inicializada após logout automático`);
+                  console.log(`[${clientId}] ✅ Reinicialização pós-logout concluída`);
+                } else {
+                  console.log(`[${clientId}] Reinicialização cancelada - instância removida ou já conectada`);
                 }
               } catch (error) {
-                console.error(`[${clientId}] Erro ao reinicializar após logout automático:`, error);
+                console.error(`[${clientId}] Erro ao reinicializar após logout:`, error);
+                // Não tentar novamente para evitar loops infinitos
               }
-            }, 2000); // Aguardar 2 segundos antes de reinicializar
+            }, 3000); // Aguardar 3 segundos para estabilizar
           }
           
           // Para outros tipos de desconexão (incluindo QR code expirado)
@@ -506,9 +547,9 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
             // Verificar se não estava conectado (indicativo de QR code expirado ou problemas de conexão)
             const wasNotConnected = !instances[clientId].isConnected;
             
-            // Se não estava conectado, é provável que seja QR code expirado - reinicializar imediatamente
-            if (wasNotConnected) {
-              console.log(`[${clientId}] QR Code provavelmente expirado. Gerando novo QR code automaticamente...`);
+            // CORREÇÃO: Verificar se já há uma inicialização em andamento antes de reinicializar
+            if (wasNotConnected && !initializationInProgress.has(clientId)) {
+              console.log(`[${clientId}] QR Code provavelmente expirado. Programando geração de novo QR code...`);
               
               // Atualizar status nos metadados
               saveInstanceMetadata(clientId, {
@@ -517,18 +558,35 @@ const initializeWhatsApp = async (clientId = 'default', options = {}) => {
                 autoReinitializing: true
               });
               
-              // Reinicializar imediatamente para gerar novo QR code
+              // Resetar o socket atual para evitar referências antigas
+              instances[clientId].sock = null;
+              instances[clientId].qrText = '';
+              instances[clientId].connectionStatus = 'disconnected';
+              
+              // Aguardar um pouco mais para evitar reinicializações muito frequentes
               setTimeout(async () => {
                 try {
-                  if (instances[clientId]) {
-                    console.log(`[${clientId}] Reinicializando para gerar novo QR code...`);
+                  // Verificar novamente se a instância ainda existe e se não há inicialização em andamento
+                  if (instances[clientId] && !instances[clientId].sock && !initializationInProgress.has(clientId)) {
+                    console.log(`[${clientId}] Gerando novo QR code...`);
                     await initializeWhatsApp(clientId, currentConfig);
                     console.log(`[${clientId}] ✅ Novo QR code gerado com sucesso!`);
+                  } else {
+                    console.log(`[${clientId}] Geração de QR cancelada - instância removida ou já em processo`);
                   }
                 } catch (error) {
                   console.error(`[${clientId}] Erro ao gerar novo QR code:`, error);
+                  // Marcar que não está mais tentando reinicializar
+                  if (instances[clientId]) {
+                    saveInstanceMetadata(clientId, {
+                      autoReinitializing: false,
+                      lastError: error.message
+                    });
+                  }
                 }
-              }, 1000); // Aguardar apenas 1 segundo antes de reinicializar
+              }, 2000); // Aguardar 2 segundos para estabilizar
+            } else if (wasNotConnected && initializationInProgress.has(clientId)) {
+              console.log(`[${clientId}] QR expirado detectado, mas inicialização já em andamento - ignorando`);
             } 
             
             // Se estava conectado, usar backoff exponencial para reconectar
@@ -865,7 +923,18 @@ const validatePhoneNumber = async (clientId, phoneNumber) => {
  */
 const sendTextMessage = async (clientId = 'default', phoneNumber, message, simulateTyping = false, typingDurationMs = 1500) => {
   try {
-    if (!instances[clientId]?.sock) {
+    console.log(`[${clientId}] 📤 Enviando mensagem de texto para ${phoneNumber}`);
+    
+    if (!instances[clientId]) {
+      console.log(`[${clientId}] ❌ Instância não encontrada na memória`);
+      return {
+        success: false,
+        error: `Instância ${clientId} não encontrada`
+      };
+    }
+    
+    if (!instances[clientId].sock) {
+      console.log(`[${clientId}] ❌ Socket não está disponível`);
       return {
         success: false,
         error: `WhatsApp do cliente ${clientId} não está conectado`
@@ -1342,16 +1411,26 @@ const restartConnection = async (clientId = 'default') => {
  */
 const deleteInstance = async (clientId = 'default') => {
   try {
+    console.log(`[${clientId}] 🗑️  DELETANDO INSTÂNCIA - Solicitação de exclusão recebida`);
+    
     if (!instances[clientId]) {
+      console.log(`[${clientId}] ⚠️  Tentativa de deletar instância inexistente`);
       return {
         success: false,
         error: `Instância para o cliente ${clientId} não encontrada`
       };
     }
     
+    // Cancelar qualquer inicialização em andamento
+    if (initializationInProgress.has(clientId)) {
+      console.log(`[${clientId}] 🛑 Cancelando inicialização em andamento antes da exclusão`);
+      initializationInProgress.delete(clientId);
+    }
+    
     // Desconectar a instância se estiver conectada
     if (instances[clientId].sock) {
       try {
+        console.log(`[${clientId}] 🔌 Desconectando socket antes da exclusão`);
         // Tentar fazer logout antes de deletar
         await instances[clientId].sock.logout().catch(() => {});
         await instances[clientId].sock.close().catch(() => {});
@@ -1363,19 +1442,22 @@ const deleteInstance = async (clientId = 'default') => {
     
     // Remover a instância do objeto de instâncias
     delete instances[clientId];
+    console.log(`[${clientId}] ✅ Instância removida da memória`);
     
     // Opcional: Remover diretório de sessão se necessário
     const SESSION_PATH = path.join(SESSION_DIR, clientId);
     if (fs.existsSync(SESSION_PATH)) {
+      console.log(`[${clientId}] 🗂️  Removendo diretório de sessão: ${SESSION_PATH}`);
       fs.rmSync(SESSION_PATH, { recursive: true, force: true });
     }
     
+    console.log(`[${clientId}] 🎉 Instância deletada com sucesso`);
     return {
       success: true,
       message: `Instância para cliente ${clientId} removida com sucesso`
     };
   } catch (error) {
-    console.error(`[${clientId}] Erro ao deletar instância:`, error);
+    console.error(`[${clientId}] ❌ Erro ao deletar instância:`, error);
     return {
       success: false,
       error: error.message || 'Erro ao deletar instância'
